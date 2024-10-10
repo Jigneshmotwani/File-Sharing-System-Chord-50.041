@@ -4,12 +4,12 @@
 
 **Team Members:**
 
-- Jash Jignesh Veragiwala (1006185)
 - Chandrasekar Akash (1006228)
-- Sarang Nambiar (1006181)
 - Dorishetti Kaushik Varma (1006012)
+- Jash Jignesh Veragiwala (1006185)
 - Jignesh Motwani (1006178)
-
+- Sarang Nambiar (1006181)
+  
 ---
 
 ## Problem Description
@@ -29,7 +29,7 @@ The Distributed File Sharing System using Chord will implement several key featu
 - **Correctness**: Ensures that file operations, such as storage and retrieval, are accurately executed while maintaining data integrity.
 - **Scalability**: The Chord DHT protocol facilitates scalable and efficient file sharing, making it well-suited for accommodating a large number of users without compromising performance.
 - **Fault Tolerance**: The system will be designed to manage node failures effectively.
-- **Decentralized**: Chord-based file sharing eliminates reliance on a centralized server, enabling users to exchange files directly with one another in a decentralized manner.
+- **Decentralized**: Chord based file sharing eliminates reliance on a centralized server, enabling users to exchange files directly with one another in a decentralized manner.
 - **File Chunking and Distribution**: Shared files are divided into smaller chunks, which are then distributed across multiple nodes in the network. The system assembles these chunks when a node requests a file, reconstructing the complete file.
 
 ---
