@@ -28,9 +28,9 @@ The Distributed File Sharing System using Chord will implement several key featu
 
 - **Correctness**: Ensures that file operations, such as storage and retrieval, are accurately executed while maintaining data integrity.
 - **Scalability**: The Chord DHT protocol facilitates scalable and efficient file sharing, making it well-suited for accommodating a large number of users without compromising performance.
+- **File Chunking and Distribution**: Shared files are divided into smaller chunks, which are then distributed across multiple nodes in the network. The system assembles these chunks when a node requests a file, reconstructing the complete file.
 - **Fault Tolerance**: The system will be designed to manage node failures effectively.
 - **Decentralized**: Chord based file sharing eliminates reliance on a centralized server, enabling users to exchange files directly with one another in a decentralized manner.
-- **File Chunking and Distribution**: Shared files are divided into smaller chunks, which are then distributed across multiple nodes in the network. The system assembles these chunks when a node requests a file, reconstructing the complete file.
 
 ---
 
@@ -40,6 +40,7 @@ In this project, we will implement the Chord protocol using the **Go programming
 
 - **Crypto Package**: Provides access to the built in **SHA-1 algorithm**, which enables consistent hashing for the Chord protocol.
 - **Net Package**: Facilitates file sharing among various nodes using TCP/IP sockets.
+- **os**: This package provides an interface to operating system functionality to read from and write files to the local filesystem, as well as manage file permissions.
 
 ---
 
