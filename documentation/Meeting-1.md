@@ -40,7 +40,7 @@ In this project, we will implement the Chord protocol using the **Go programming
 
 - **Crypto Package**: Provides access to the built in **SHA-1 algorithm**, which enables consistent hashing for the Chord protocol.
 - **Net Package**: Facilitates file sharing among various nodes using TCP/IP sockets.
-- **os**: This package provides an interface to operating system functionality to read from and write files to the local filesystem, as well as manage file permissions.
+- **OS Package**: This package provides an interface to operating system functionality to read from and write files to the local filesystem, as well as manage file permissions.
 
 ---
 
