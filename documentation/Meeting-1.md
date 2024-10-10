@@ -16,9 +16,9 @@
 
 Traditional centralized file sharing systems often struggle with issues such as single points of failure, bottlenecks, and scalability limitations. These challenges can lead to decreased system reliability, slower access times, and increased operational costs, especially as the number of users and shared files grows.
 
-To address these issues, this project aims to develop a **Distributed File Sharing System** leveraging the **Chord protocol**, which provides a peer-to-peer architecture where each participant contributes to the network, distributing files in a way that reduces dependency on any single node. The primary goal of this project is to develop a system capable of locating, retrieving, and storing files across a decentralized network while ensuring rapid access and high availability, even with large numbers of files and users.
+To address these issues, this project aims to develop a **Distributed File Sharing System** leveraging the **Chord protocol**, which provides a peer to peer architecture where each participant contributes to the network, distributing files in a way that reduces dependency on any single node. The primary goal of this project is to develop a system capable of locating, retrieving, and storing files across a decentralized network while ensuring rapid access and high availability, even with large numbers of files and users.
 
-Distributed systems are crucial in overcoming the limitations of centralized systems by allowing data and processing tasks to be spread across multiple nodes. In this project, the **Chord protocol** acts as the backbone of a **Distributed Hash Table (DHT)**, providing a structured way of locating and accessing files based on their unique keys. The distributed nature of Chord ensures that file-sharing capabilities remain resilient, scalable, and fault-tolerant.
+Distributed systems are crucial in overcoming the limitations of centralized systems by allowing data and processing tasks to be spread across multiple nodes. In this project, the **Chord protocol** acts as the backbone of a **Distributed Hash Table (DHT)**, providing a structured way of locating and accessing files based on their unique keys. The distributed nature of Chord ensures that file sharing capabilities remain resilient, scalable, and fault tolerant.
 
 ---
 
@@ -38,7 +38,7 @@ The Distributed File Sharing System using Chord will implement several key featu
 
 In this project, we will implement the Chord protocol using the **Go programming language**. We will develop the protocol from scratch, adapting it to our specific use case of File Sharing. We will utilize the following packages from Go:
 
-- **Crypto Package**: Provides access to the built-in **SHA-1 algorithm**, which enables consistent hashing for the Chord protocol.
+- **Crypto Package**: Provides access to the built in **SHA-1 algorithm**, which enables consistent hashing for the Chord protocol.
 - **Net Package**: Facilitates file sharing among various nodes using TCP/IP sockets.
 
 ---
