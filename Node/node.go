@@ -76,7 +76,7 @@ func (n *Node) Address() string {
 func (n *Node) StartPeriodicTasks() {
     go n.UpdateFingerTable()
     go n.StartStabilization()
-    go n.DisplayFingerTablePeriodically()
+    // go n.DisplayFingerTablePeriodically()
 }
 
 func (n *Node) DisplayFingerTablePeriodically() {

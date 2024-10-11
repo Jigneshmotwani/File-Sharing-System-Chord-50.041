@@ -3,11 +3,14 @@
 package main
 
 import (
-    "distributed-chord/node"
     "flag"
     "fmt"
     "log"
+    "os"
+
+    "distributed-chord/node"
 )
+
 
 func main() {
     // Parse command-line flags
@@ -41,6 +44,44 @@ func main() {
 
     // Start periodic tasks (finger table updates and stabilization)
     n.StartPeriodicTasks()
+
+
+	go func() {
+		for {
+			var command, key, value string
+			fmt.Println("Enter command (put/get/exit):")
+			fmt.Scanln(&command)
+			switch command {
+			case "put":
+				fmt.Println("Enter key:")
+				fmt.Scanln(&key)
+				fmt.Println("Enter value:")
+				fmt.Scanln(&value)
+				err := n.Put(key, value)
+				if err != nil {
+					fmt.Printf("Error putting key: %v\n", err)
+				} else {
+					fmt.Println("Key stored successfully.")
+				}
+			case "get":
+				fmt.Println("Enter key:")
+				fmt.Scanln(&key)
+				value, err := n.Get(key)
+				if err != nil {
+					fmt.Printf("Error getting key: %v\n", err)
+				} else {
+					fmt.Printf("Retrieved value: %s\n", value)
+				}
+			case "exit":
+				fmt.Println("Exiting...")
+				os.Exit(0)
+			default:
+				fmt.Println("Unknown command.")
+			}
+		}
+	}()
+	
+
 
     // Keep the main function running
     select {}

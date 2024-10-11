@@ -15,13 +15,25 @@ type JoinReply struct {
     Successor *RemoteNode
 }
 
-type LookupArgs struct {
-    Key string
+type GetArgs struct {
+    Key []byte
 }
 
-type LookupReply struct {
-    Node *RemoteNode
+type GetReply struct {
+    Value string
+    Found bool
 }
+
+type PutArgs struct {
+    Key   []byte
+    Value string
+}
+
+type PutReply struct {
+    Success bool
+}
+
+
 
 // StartRPCServer starts the RPC server for the node
 func (n *Node) StartRPCServer() error {
@@ -30,10 +42,11 @@ func (n *Node) StartRPCServer() error {
     if err != nil {
         return err
     }
-    fmt.Printf("Node %x listening on %s\n", n.ID, n.Address())
+    fmt.Printf("Node %s listening on %s\n", formatID(n.ID, n.KeySize), n.Address())
     go rpc.Accept(listener)
     return nil
 }
+
 
 func (n *Node) Join(existingNodeAddress string) error {
     fmt.Printf("Node %x attempting to join the network via %s\n", n.ID, existingNodeAddress)

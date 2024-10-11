@@ -58,3 +58,84 @@ Each node should output logs indicating their activities, such as:
 
 ---
 
+### 4. Use the `put` and `get` Commands
+
+You can now store and retrieve key-value pairs in the network using the `put` and `get` commands.
+
+#### Store a Key-Value Pair
+
+In **Terminal 1**, enter:
+
+```plaintext
+Enter command (put/get/exit):
+put
+Enter key:
+apple
+Enter value:
+red
+Key stored successfully.
+```
+
+The node will hash the key and store the value on the appropriate node in the network.
+
+#### Retrieve a Key-Value Pair
+
+In **Terminal 2**, enter:
+
+```plaintext
+Enter command (put/get/exit):
+get
+Enter key:
+apple
+Retrieved value: red
+```
+
+Even though you stored the key in Terminal 1, you can retrieve it from Terminal 2.
+
+This demonstrates the node lookup functionality across the network.
+
+#### Store Another Key-Value Pair
+
+In **Terminal 2**, enter:
+
+```plaintext
+Enter command (put/get/exit):
+put
+Enter key:
+banana
+Enter value:
+yellow
+Key stored successfully.
+```
+
+#### Retrieve the New Key-Value Pair
+
+In **Terminal 3**, enter:
+
+```plaintext
+Enter command (put/get/exit):
+get
+Enter key:
+banana
+Retrieved value: yellow
+```
+
+### 5. Exit the Nodes
+
+To gracefully exit a node, enter:
+
+```plaintext
+Enter command (put/get/exit):
+exit
+Exiting...
+```
+
+Repeat this in each terminal when you're done testing.
+
+---
+
+Understanding the Node Lookup Process:
+
+- **Hashing Keys**: When you `put` or `get` a key, the key is hashed using SHA-1 and mapped into the key space `[0, 2^m)`.
+- **Finding the Responsible Node**: The node uses the `findSuccessor` function to locate the node responsible for the key's hashed ID.
+- **Data Storage and Retrieval**: The key-value pair is stored on or retrieved from the node responsible for that key.
