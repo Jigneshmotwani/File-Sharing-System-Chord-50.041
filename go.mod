@@ -1,7 +1,3 @@
-module distributed-file-sharing-chord
+module distributed-chord
 
 go 1.16
-
-require (
-    // List of dependencies
-)
