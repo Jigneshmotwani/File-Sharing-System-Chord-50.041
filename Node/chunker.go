@@ -1,16 +1,33 @@
 package main
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
 const (
-	chunkSize = 1024 // 1KB size limit for each chunk, change if needed
+	chunkSize    = 1024                                                // 1KB size limit for each chunk, change if needed
+	maxHashValue = "1461501637330902918203684832716283019655932542975" // 2^160 - 1
 )
+
+type Node struct {
+	FolderName string
+	HashValue  *big.Int
+}
+
+// NodeInterval represents the interval assigned to a node
+type NodeInterval struct {
+	Node       Node
+	StartValue *big.Int
+	EndValue   *big.Int
+}
 
 func main() {
 	// Paths
@@ -46,6 +63,7 @@ func main() {
 	}
 	defer file.Close()
 
+	// Get all the node folders and assign intervals
 	nodeFolders, err := getNodeFolders(dataDir, sourceFolder)
 	if err != nil {
 		fmt.Println("Error retrieving folders:", err)
@@ -57,9 +75,11 @@ func main() {
 		return
 	}
 
+	// Create and assign intervals to nodes based on hashed folder names
+	nodeIntervals := assignNodeIntervals(nodeFolders)
+
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
-	nodeIndex := 0
 
 	// Replace special characters in the absolute path to make it valid as a file name
 	absPathForFileName := sanitizeFileName(absPath)
@@ -77,35 +97,112 @@ func main() {
 			break
 		}
 
-		destinationFolder := nodeFolders[nodeIndex]
-		nodeIndex = (nodeIndex + 1) % len(nodeFolders)
-
 		// Create the chunk file name by appending the chunk number at the end of the sanitized path without extension
 		chunkFileName := fmt.Sprintf("%s-chunk%d.txt", absPathWithoutExtension, chunkNumber)
-		chunkPath := filepath.Join(destinationFolder, chunkFileName)
 
-		// Write chunk to the destination folder
-		err = writeChunk(chunkPath, buffer[:bytesRead])
-		if err != nil {
-			fmt.Println("Error writing chunk:", err)
-			return
+		// Hash the chunk file name using SHA-1 and convert it to a big integer
+		hashedChunkFileName := hashSHA1(chunkFileName)
+		hashedChunkBigInt := hashToBigInt(hashedChunkFileName)
+		fmt.Printf("Chunk File Name: %s\nSHA-1 Hash: %s\nBigInt: %s\n", chunkFileName, hashedChunkFileName, hashedChunkBigInt)
+
+		// Find the appropriate node based on the chunk's big integer value
+		assignedNode := findAssignedNode(hashedChunkBigInt, nodeIntervals)
+
+		if assignedNode != nil {
+			// Save the chunk in the assigned node's folder
+			destinationFolder := filepath.Join(dataDir, assignedNode.Node.FolderName)
+			chunkPath := filepath.Join(destinationFolder, chunkFileName)
+			err = writeChunk(chunkPath, buffer[:bytesRead])
+			if err != nil {
+				fmt.Println("Error writing chunk:", err)
+				return
+			}
+			fmt.Printf("Chunk %d assigned to node: %s\n", chunkNumber, assignedNode.Node.FolderName)
+		} else {
+			fmt.Println("No node found for chunk:", chunkFileName)
 		}
 
-		fmt.Printf("Created %s in %s\n", chunkFileName, destinationFolder)
 		chunkNumber++
 	}
 }
 
-// Function to sanitize the file name, replacing invalid characters like `:` and `\`
+// assign intervals to nodes based on hashed folder names
+func assignNodeIntervals(nodeFolders []string) []NodeInterval {
+	var nodes []Node
+
+	// Create Node structs with hashed values
+	for _, folder := range nodeFolders {
+		hashedFolderName := hashSHA1(folder)
+		hashedFolderBigInt := hashToBigInt(hashedFolderName)
+		nodes = append(nodes, Node{FolderName: folder, HashValue: hashedFolderBigInt})
+		// fmt.Printf("Node: %s", nodes)
+	}
+
+	// Sort nodes by their hash value
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].HashValue.Cmp(nodes[j].HashValue) < 0
+	})
+
+	var nodeIntervals []NodeInterval
+	maxHashBigInt := new(big.Int)
+	maxHashBigInt.SetString(maxHashValue, 10)
+
+	for i := 0; i < len(nodes); i++ {
+		start := nodes[i].HashValue
+		var end *big.Int
+
+		if i == len(nodes)-1 {
+			// Last node wraps around to include [nodes[i] -> 2^160-1] and [0 -> first node]
+			end = new(big.Int).Sub(maxHashBigInt, big.NewInt(1))
+		} else {
+			// Set end to the next node's value - 1
+			end = new(big.Int).Sub(nodes[i+1].HashValue, big.NewInt(1))
+		}
+		nodeIntervals = append(nodeIntervals, NodeInterval{
+			Node:       nodes[i],
+			StartValue: start,
+			EndValue:   end,
+		})
+		// Print the interval for all nodes, including the selected node
+		fmt.Printf("Node: %s, Interval: [%s, %s]\n", nodes[i].FolderName, start.String(), end.String())
+	}
+	// Assignment for last node
+	if len(nodes) > 0 {
+		firstNodeStartValue := nodeIntervals[0].StartValue
+		nodeIntervals[len(nodeIntervals)-1].EndValue = maxHashBigInt
+
+		nodeIntervals = append(nodeIntervals, NodeInterval{
+			Node:       nodes[0],
+			StartValue: big.NewInt(0),
+			EndValue:   firstNodeStartValue,
+		})
+	}
+	return nodeIntervals
+}
+
+func findAssignedNode(chunkBigInt *big.Int, nodeIntervals []NodeInterval) *NodeInterval {
+	for _, interval := range nodeIntervals {
+		if isInInterval(chunkBigInt, interval.StartValue, interval.EndValue) {
+			return &interval
+		}
+	}
+	return nil
+}
+
+func isInInterval(value, start, end *big.Int) bool {
+	if start.Cmp(end) <= 0 {
+		return value.Cmp(start) >= 0 && value.Cmp(end) <= 0
+	} else {
+		return value.Cmp(start) >= 0 || value.Cmp(end) <= 0
+	}
+}
+
 func sanitizeFileName(path string) string {
-	// Replace backslashes and colons with underscores
 	replacer := strings.NewReplacer("\\", "_", ":", "_")
 	return replacer.Replace(path)
 }
 
-// Function to remove the file extension from the sanitized absolute path
 func removeFileExtension(path string) string {
-	// Remove the extension using filepath.Ext to get the extension and strings.TrimSuffix
 	ext := filepath.Ext(path)
 	return strings.TrimSuffix(path, ext)
 }
@@ -134,7 +231,6 @@ func promptUserForFolder(dataDir string) string {
 		fmt.Println("Invalid choice. Please select a valid node.")
 	}
 }
-
 func promptUserForFile(dataDir, folder string) (string, string) {
 	for {
 		var fileName string
@@ -144,42 +240,51 @@ func promptUserForFile(dataDir, folder string) (string, string) {
 		if fileName == "-1" {
 			return "-1", ""
 		}
-
 		filePath := filepath.Join(dataDir, folder, fileName)
-		if _, err := os.Stat(filePath); err == nil {
-			// Print the full path of the selected file
-			absPath, _ := filepath.Abs(filePath) // Get the absolute path
-			fmt.Printf("Full path of the selected file: %s\n", absPath)
-			return filePath, absPath
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			fmt.Println("Invalid file name. Please try again.")
 		} else {
-			fmt.Println("File not found in the selected folder. Please try again.")
+			absPath, _ := filepath.Abs(filePath)
+			return filePath, absPath
 		}
 	}
 }
 
-func getNodeFolders(dataDir, excludeFolder string) ([]string, error) {
+// Function to get all node folders in the data directory
+func getNodeFolders(dataDir, sourceFolder string) ([]string, error) {
 	var nodeFolders []string
+	err := filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && path != dataDir {
+			nodeFolders = append(nodeFolders, path)
+		}
 
-	entries, err := os.ReadDir(dataDir)
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() != excludeFolder {
-			nodeFolders = append(nodeFolders, filepath.Join(dataDir, entry.Name()))
-		}
 	}
 
 	return nodeFolders, nil
 }
 
-func writeChunk(path string, data []byte) error {
-	chunkFile, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer chunkFile.Close()
-	_, err = chunkFile.Write(data)
-	return err
+// SHA-1 hashing
+func hashSHA1(data string) string {
+	hasher := sha1.New()
+	hasher.Write([]byte(data))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+// hashed to big integer
+func hashToBigInt(hash string) *big.Int {
+	hashedBytes, _ := hex.DecodeString(hash)
+	return new(big.Int).SetBytes(hashedBytes)
+}
+
+// write chunk data to a file
+func writeChunk(filePath string, data []byte) error {
+	return os.WriteFile(filePath, data, 0644)
 }
