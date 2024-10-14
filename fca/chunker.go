@@ -1,4 +1,4 @@
-package main
+package fca
 
 import (
 	"crypto/sha1"
@@ -29,9 +29,9 @@ type NodeInterval struct {
 	EndValue   *big.Int
 }
 
-func main() {
+func Chunker() {
 	// Paths
-	dataDir := "../Data" // Change if needed
+	dataDir := "Data" // Change if needed
 	var sourceFolder, sourceFile, absPath string
 
 	// Loop to allow user to switch nodes or select a file
@@ -103,13 +103,14 @@ func main() {
 		// Hash the chunk file name using SHA-1 and convert it to a big integer
 		hashedChunkFileName := hashSHA1(chunkFileName)
 		hashedChunkBigInt := hashToBigInt(hashedChunkFileName)
-		fmt.Printf("Chunk File Name: %s\nSHA-1 Hash: %s\nBigInt: %s\n", chunkFileName, hashedChunkFileName, hashedChunkBigInt)
+		// fmt.Printf("Chunk File Name: %s\nSHA-1 Hash: %s\nBigInt: %s\n", chunkFileName, hashedChunkFileName, hashedChunkBigInt)
 
 		// Find the appropriate node based on the chunk's big integer value
 		assignedNode := findAssignedNode(hashedChunkBigInt, nodeIntervals)
 
 		if assignedNode != nil {
 			// Save the chunk in the assigned node's folder
+			dataDir := "" // Change if needed
 			destinationFolder := filepath.Join(dataDir, assignedNode.Node.FolderName)
 			chunkPath := filepath.Join(destinationFolder, chunkFileName)
 			err = writeChunk(chunkPath, buffer[:bytesRead])
