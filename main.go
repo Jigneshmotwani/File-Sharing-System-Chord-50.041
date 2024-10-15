@@ -12,7 +12,8 @@ import "distributed-chord/fca"
 // "distributed-chord/node"
 
 func main() {
-	fca.Chunker()
+	// fca.Chunker()
+	fca.Assembler(fca.ChunkInfo{[]string{"Node2", "Node4", "Node1"}, "C__Users_saran_Documents_GitHub_File-Sharing-System-Chord-50.041_Data_Node1_file"})
 	// Parse command-line flags
 	// ip := flag.String("ip", "127.0.0.1", "IP address of the node")
 	// port := flag.Int("port", 8000, "Port number of the node")
