@@ -53,7 +53,7 @@ func (n *Node) Stabilize() {
 }
 
 // GetPredecessorGrpc returns the node's predecessor
-func (n *Node) GetPredecessorß(ctx context.Context, _ *pb.EmptyRequest) (*pb.NodeInfo, error) {
+func (n *Node) GetPredecessor(ctx context.Context, _ *pb.EmptyRequest) (*pb.NodeInfo, error) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	if n.Predecessor != nil {
