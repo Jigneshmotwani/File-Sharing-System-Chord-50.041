@@ -1,14 +1,18 @@
 package node
 
 import (
+	"context"
 	"crypto/sha1"
+	pb "distributed-chord/chord"
 	"errors"
 	"fmt"
 	"math/big"
-	"net/rpc"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-func (n *Node) Put(key string, value string) error {
+func (n *Node) PutKey(key string, value string) error {
 	keyHash := HashKey(key, n.KeySize)
 	keyStr := KeyToString(keyHash, n.KeySize)
 	successor, err := n.findSuccessor(keyHash)
@@ -17,25 +21,23 @@ func (n *Node) Put(key string, value string) error {
 	}
 
 	if bytesEqual(successor.ID, n.ID) {
-		// This node is responsible for the key
 		n.mutex.Lock()
 		n.Data[keyStr] = value
 		n.mutex.Unlock()
 		fmt.Printf("Node %s stored key %s locally\n", formatID(n.ID, n.KeySize), key)
 	} else {
-		// Send RPC to successor to store the key
-		client, err := rpc.Dial("tcp", successor.Address())
+		conn, err := grpc.NewClient(successor.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return err
 		}
-		defer client.Close()
+		defer conn.Close()
 
-		args := &PutArgs{
+		client := pb.NewChordNodeClient(conn)
+		req := &pb.PutRequest{
 			Key:   keyHash,
 			Value: value,
 		}
-		var reply PutReply
-		err = client.Call("Node.PutRPC", args, &reply)
+		_, err = client.Put(context.Background(), req)
 		if err != nil {
 			return err
 		}
@@ -43,7 +45,7 @@ func (n *Node) Put(key string, value string) error {
 	return nil
 }
 
-func (n *Node) Get(key string) (string, error) {
+func (n *Node) GetKey(key string) (string, error) {
 	keyHash := HashKey(key, n.KeySize)
 	keyStr := KeyToString(keyHash, n.KeySize)
 	successor, err := n.findSuccessor(keyHash)
@@ -52,7 +54,6 @@ func (n *Node) Get(key string) (string, error) {
 	}
 
 	if bytesEqual(successor.ID, n.ID) {
-		// This node is responsible for the key
 		n.mutex.Lock()
 		value, exists := n.Data[keyStr]
 		n.mutex.Unlock()
@@ -62,54 +63,50 @@ func (n *Node) Get(key string) (string, error) {
 			return "", errors.New("Key not found")
 		}
 	} else {
-		// Send RPC to successor to get the key
-		client, err := rpc.Dial("tcp", successor.Address())
+		conn, err := grpc.Dial(successor.Address(), grpc.WithInsecure())
 		if err != nil {
 			return "", err
 		}
-		defer client.Close()
+		defer conn.Close()
 
-		args := &GetArgs{
+		client := pb.NewChordNodeClient(conn)
+		req := &pb.GetRequest{
 			Key: keyHash,
 		}
-		var reply GetReply
-		err = client.Call("Node.GetRPC", args, &reply)
+		resp, err := client.Get(context.Background(), req)
 		if err != nil {
 			return "", err
 		}
-		if reply.Found {
-			return reply.Value, nil
+		if resp.Found {
+			return resp.Value, nil
 		} else {
 			return "", errors.New("Key not found")
 		}
 	}
 }
 
-// RPC method for Put
-func (n *Node) PutRPC(args *PutArgs, reply *PutReply) error {
-	keyStr := KeyToString(args.Key, n.KeySize)
+// Put funtion for Grpc
+func (n *Node) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, error) {
+	keyStr := KeyToString(req.Key, n.KeySize)
 	n.mutex.Lock()
-	n.Data[keyStr] = args.Value
+	n.Data[keyStr] = req.Value
 	n.mutex.Unlock()
-	fmt.Printf("Node %s stored key %s via RPC\n", formatID(n.ID, n.KeySize), keyStr)
-	reply.Success = true
-	return nil
+	fmt.Printf("Node %s stored key %s via gRPC\n", formatID(n.ID, n.KeySize), keyStr)
+	return &pb.PutResponse{Success: true}, nil
 }
 
-// RPC method for Get
-func (n *Node) GetRPC(args *GetArgs, reply *GetReply) error {
-	keyStr := KeyToString(args.Key, n.KeySize)
+// Get funtion for Grpc
+func (n *Node) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
+	keyStr := KeyToString(req.Key, n.KeySize)
 	n.mutex.Lock()
 	value, exists := n.Data[keyStr]
 	n.mutex.Unlock()
 	if exists {
-		reply.Value = value
-		reply.Found = true
-		fmt.Printf("Node %s retrieved key %s via RPC\n", formatID(n.ID, n.KeySize), keyStr)
+		fmt.Printf("Node %s retrieved key %s via gRPC\n", formatID(n.ID, n.KeySize), keyStr)
+		return &pb.GetResponse{Value: value, Found: true}, nil
 	} else {
-		reply.Found = false
+		return &pb.GetResponse{Found: false}, nil
 	}
-	return nil
 }
 
 // Helper functions
