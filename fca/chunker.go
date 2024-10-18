@@ -4,10 +4,12 @@ import (
 	"distributed-chord/chord/node"
 	"fmt"
 	"io"
-	"math/big"
+
+	// "math/big"
 	"os"
 	"path/filepath"
-	"sort"
+
+	// "sort"
 	"strings"
 )
 
@@ -42,7 +44,7 @@ func Chunker() *ChunkInfo {
 		}
 
 		// Set the original file name in the ChunkInfo struct
-		chunkInfo.Name = filepath.Base(sourceFile)
+		chunkInfo.Name = removeFileExtension(sanitizeFileName(absPath))
 		break // Exit the loop after a valid file is selected
 	}
 
@@ -67,7 +69,7 @@ func Chunker() *ChunkInfo {
 	}
 
 	// var nodes []*node.Node
-	
+	// add finger tables implementation here
 
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
@@ -108,10 +110,10 @@ func Chunker() *ChunkInfo {
 				fmt.Println("Error writing chunk:", err)
 				return nil
 			}
-			fmt.Printf("Chunk %d assigned to node: %s\n", chunkNumber, assignedNode.FolderName)
+			fmt.Printf("Chunk %d assigned to node: %s\n", chunkNumber, filepath.Base(assignedNode.FolderName))
 
 			// Append the chunk's location info to the ChunkLocations field in chunkInfo
-			chunkInfo.ChunkLocations = append(chunkInfo.ChunkLocations, assignedNode.FolderName)
+			chunkInfo.ChunkLocations = append(chunkInfo.ChunkLocations, filepath.Base(assignedNode.FolderName))
 		} else {
 			fmt.Println("No node found for chunk:", chunkFileName)
 		}
