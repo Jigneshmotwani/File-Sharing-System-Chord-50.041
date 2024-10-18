@@ -1,20 +1,16 @@
 package fca
 
 import (
-	"distributed-chord/chord/node"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
 func Chunker() *ChunkInfo {
 	// Paths
-	dataDir := "./data" // Change if needed
-	const chunkSize = 1024
+	dataDir := "./Data" // Change if needed
 	var sourceFolder, sourceFile, absPath string
 
 	// Initialize the ChunkInfo struct
@@ -66,8 +62,8 @@ func Chunker() *ChunkInfo {
 		return nil
 	}
 
-	// var nodes []*node.Node
-	
+	// Create and initialize finger tables for all nodes
+	nodes := initializeFingerTables(nodeFolders)
 
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
@@ -92,12 +88,11 @@ func Chunker() *ChunkInfo {
 		chunkFileName := fmt.Sprintf("%s-chunk%d.txt", absPathWithoutExtension, chunkNumber)
 
 		// Hash the chunk file name using SHA-1 and convert it to a big integer
-		// hashedChunkFileName := node.hashSHA1(chunkFileName)
-		// hashedChunkBigInt := node.hashToBigInt(hashedChunkFileName)
-		hashedChunkBigInt := node.SHA1Hash(chunkFileName)
+		hashedChunkFileName := hashSHA1(chunkFileName)
+		hashedChunkBigInt := hashToBigInt(hashedChunkFileName)
 
 		// Find the appropriate node based on the chunk's big integer value
-		assignedNode := node.findSuccessor(hashedChunkBigInt)
+		assignedNode := findSuccessor(hashedChunkBigInt, nodes)
 
 		if assignedNode != nil {
 			// Save the chunk in the assigned node's folder
@@ -199,18 +194,19 @@ func promptUserForFile(dataDir, folder string) (string, string) {
 // Function to get all node folders in the data directory
 func getNodeFolders(dataDir, sourceFolder string) ([]string, error) {
 	var nodeFolders []string
+	err := filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && path != dataDir {
+			nodeFolders = append(nodeFolders, path)
+		}
 
-	// Read the entries in the dataDir folder
-	entries, err := os.ReadDir(dataDir)
+		return nil
+	})
+
 	if err != nil {
 		return nil, err
-	}
-
-	// Loop through the entries and append only directories
-	for _, entry := range entries {
-		if entry.IsDir() {
-			nodeFolders = append(nodeFolders, filepath.Join(dataDir, entry.Name()))
-		}
 	}
 
 	return nodeFolders, nil
