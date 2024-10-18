@@ -106,7 +106,7 @@ func (n *Node) findSuccessor(id []byte) (*RemoteNode, error) {
 	}
 }
 
-func (n *Node) FindSuccessorGrpc(ctx context.Context, req *pb.FindSuccessorRequest) (*pb.FindSuccessorResponse, error) {
+func (n *Node) FindSuccessor(ctx context.Context, req *pb.FindSuccessorRequest) (*pb.FindSuccessorResponse, error) {
 	successor, err := n.findSuccessor(req.Id)
 	if err != nil {
 		return nil, err
