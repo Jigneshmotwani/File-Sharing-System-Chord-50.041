@@ -4,10 +4,8 @@ import (
 	"distributed-chord/chord/node"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -97,7 +95,7 @@ func Chunker() *ChunkInfo {
 		hashedChunkBigInt := node.SHA1Hash(chunkFileName)
 
 		// Find the appropriate node based on the chunk's big integer value
-		assignedNode := node.findSuccessor(hashedChunkBigInt)
+		assignedNode := node.FindSuccessor(hashedChunkBigInt)
 
 		if assignedNode != nil {
 			// Save the chunk in the assigned node's folder

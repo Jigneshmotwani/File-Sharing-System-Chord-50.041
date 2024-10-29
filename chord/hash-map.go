@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/big"
 	"distributed-chord/chord/node"
-
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -21,7 +20,7 @@ func (n *node.Node) PutKey(key string, value string) error {
 		return err
 	}
 
-	if bytesEqual(successor.ID, n.) {
+	if bytesEqual(successor.ID, n.ID) {
 		n.mutex.Lock()
 		n.Data[keyStr] = value
 		n.mutex.Unlock()
