@@ -13,11 +13,11 @@ import (
 	"crypto/sha1"
 	pb "distributed-chord/pb"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strconv"
 	"sync"
 	"time"
-	"fmt"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -42,10 +42,16 @@ type Node struct {
 	mutex       sync.Mutex
 }
 
+type RemoteNode struct {
+	ID   []byte
+	IP   string
+	Port int
+}
+
 // FingerTableEntry represents an entry in the finger table
 type FingerTableEntry struct {
-	start *big.Int
-	node  *Node
+	slot *big.Int
+	node *Node
 }
 
 // SHA-1 hashing
@@ -162,22 +168,20 @@ func (n *Node) initializeFingerTables() {
 
 	for i := 0; i < numFingerEntries; i++ {
 		// Calculate the start of each finger entry: (n.getID() + 2^i) % 2^160
-		start := new(big.Int).Add(n.getID(), new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(i)), nil))
-		start.Mod(start, maxHash)
+		slot := new(big.Int).Add(n.getID(), new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(i)), nil))
+		slot.Mod(slot, maxHash)
 
 		// Find the successor of the start value
-		successor,err := n.findSuccessor(start)
+		successor, err := n.findSuccessor(slot)
 		if err != nil {
 			fmt.Println("error finding successor:", err)
 			return
 		}
 
-		
-
 		// Fill the finger table entry
 		n.fingerTable[i] = FingerTableEntry{
-			start: start,
-			node:  successor,
+			slot: slot,
+			node: successor,
 		}
 	}
 }
@@ -196,7 +200,7 @@ func (n *Node) updateFingerTable() {
 		start.Mod(start, maxHash)
 
 		// Find the successor of the start value
-		successor,err := n.findSuccessor(start)
+		successor, err := n.findSuccessor(start)
 		if err != nil {
 			fmt.Println("error finding successor:", err)
 			return
