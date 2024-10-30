@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.28.2
-// source: node/chord.proto
+// source: proto/chord.proto
 
 package pb
 
@@ -19,13 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ChordNode_FindSuccessor_FullMethodName   = "/chord.ChordNode/FindSuccessor"
-	ChordNode_GetPredecessor_FullMethodName  = "/chord.ChordNode/GetPredecessor"
-	ChordNode_Notify_FullMethodName          = "/chord.ChordNode/Notify"
-	ChordNode_Put_FullMethodName             = "/chord.ChordNode/Put"
-	ChordNode_Get_FullMethodName             = "/chord.ChordNode/Get"
-	ChordNode_Join_FullMethodName            = "/chord.ChordNode/Join"
-	ChordNode_ReceiveFileInfo_FullMethodName = "/chord.ChordNode/ReceiveFileInfo"
+	ChordNode_FindSuccessor_FullMethodName     = "/pb.ChordNode/FindSuccessor"
+	ChordNode_GetPredecessor_FullMethodName    = "/pb.ChordNode/GetPredecessor"
+	ChordNode_Notify_FullMethodName            = "/pb.ChordNode/Notify"
+	ChordNode_Put_FullMethodName               = "/pb.ChordNode/Put"
+	ChordNode_Get_FullMethodName               = "/pb.ChordNode/Get"
+	ChordNode_ReceiveFileInfo_FullMethodName   = "/pb.ChordNode/ReceiveFileInfo"
+	ChordNode_Join_FullMethodName              = "/pb.ChordNode/Join"
+	ChordNode_UpdatePredecessor_FullMethodName = "/pb.ChordNode/UpdatePredecessor"
+	ChordNode_UpdateSuccessor_FullMethodName   = "/pb.ChordNode/UpdateSuccessor"
 )
 
 // ChordNodeClient is the client API for ChordNode service.
@@ -37,8 +39,10 @@ type ChordNodeClient interface {
 	Notify(ctx context.Context, in *NodeInfo, opts ...grpc.CallOption) (*EmptyResponse, error)
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
-	Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error)
 	ReceiveFileInfo(ctx context.Context, in *FileChunkInfo, opts ...grpc.CallOption) (*FileChunkResponse, error)
+	Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error)
+	UpdatePredecessor(ctx context.Context, in *UpdatePredecessorRequest, opts ...grpc.CallOption) (*UpdatePredecessorResponse, error)
+	UpdateSuccessor(ctx context.Context, in *UpdateSuccessorRequest, opts ...grpc.CallOption) (*UpdateSuccessorResponse, error)
 }
 
 type chordNodeClient struct {
@@ -99,6 +103,16 @@ func (c *chordNodeClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.
 	return out, nil
 }
 
+func (c *chordNodeClient) ReceiveFileInfo(ctx context.Context, in *FileChunkInfo, opts ...grpc.CallOption) (*FileChunkResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FileChunkResponse)
+	err := c.cc.Invoke(ctx, ChordNode_ReceiveFileInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *chordNodeClient) Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(JoinResponse)
@@ -109,10 +123,20 @@ func (c *chordNodeClient) Join(ctx context.Context, in *JoinRequest, opts ...grp
 	return out, nil
 }
 
-func (c *chordNodeClient) ReceiveFileInfo(ctx context.Context, in *FileChunkInfo, opts ...grpc.CallOption) (*FileChunkResponse, error) {
+func (c *chordNodeClient) UpdatePredecessor(ctx context.Context, in *UpdatePredecessorRequest, opts ...grpc.CallOption) (*UpdatePredecessorResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(FileChunkResponse)
-	err := c.cc.Invoke(ctx, ChordNode_ReceiveFileInfo_FullMethodName, in, out, cOpts...)
+	out := new(UpdatePredecessorResponse)
+	err := c.cc.Invoke(ctx, ChordNode_UpdatePredecessor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chordNodeClient) UpdateSuccessor(ctx context.Context, in *UpdateSuccessorRequest, opts ...grpc.CallOption) (*UpdateSuccessorResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateSuccessorResponse)
+	err := c.cc.Invoke(ctx, ChordNode_UpdateSuccessor_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,8 +152,10 @@ type ChordNodeServer interface {
 	Notify(context.Context, *NodeInfo) (*EmptyResponse, error)
 	Put(context.Context, *PutRequest) (*PutResponse, error)
 	Get(context.Context, *GetRequest) (*GetResponse, error)
-	Join(context.Context, *JoinRequest) (*JoinResponse, error)
 	ReceiveFileInfo(context.Context, *FileChunkInfo) (*FileChunkResponse, error)
+	Join(context.Context, *JoinRequest) (*JoinResponse, error)
+	UpdatePredecessor(context.Context, *UpdatePredecessorRequest) (*UpdatePredecessorResponse, error)
+	UpdateSuccessor(context.Context, *UpdateSuccessorRequest) (*UpdateSuccessorResponse, error)
 	mustEmbedUnimplementedChordNodeServer()
 }
 
@@ -155,11 +181,17 @@ func (UnimplementedChordNodeServer) Put(context.Context, *PutRequest) (*PutRespo
 func (UnimplementedChordNodeServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
+func (UnimplementedChordNodeServer) ReceiveFileInfo(context.Context, *FileChunkInfo) (*FileChunkResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReceiveFileInfo not implemented")
+}
 func (UnimplementedChordNodeServer) Join(context.Context, *JoinRequest) (*JoinResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Join not implemented")
 }
-func (UnimplementedChordNodeServer) ReceiveFileInfo(context.Context, *FileChunkInfo) (*FileChunkResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReceiveFileInfo not implemented")
+func (UnimplementedChordNodeServer) UpdatePredecessor(context.Context, *UpdatePredecessorRequest) (*UpdatePredecessorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdatePredecessor not implemented")
+}
+func (UnimplementedChordNodeServer) UpdateSuccessor(context.Context, *UpdateSuccessorRequest) (*UpdateSuccessorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateSuccessor not implemented")
 }
 func (UnimplementedChordNodeServer) mustEmbedUnimplementedChordNodeServer() {}
 func (UnimplementedChordNodeServer) testEmbeddedByValue()                   {}
@@ -272,24 +304,6 @@ func _ChordNode_Get_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ChordNode_Join_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(JoinRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ChordNodeServer).Join(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: ChordNode_Join_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChordNodeServer).Join(ctx, req.(*JoinRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _ChordNode_ReceiveFileInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(FileChunkInfo)
 	if err := dec(in); err != nil {
@@ -308,11 +322,65 @@ func _ChordNode_ReceiveFileInfo_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChordNode_Join_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JoinRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordNodeServer).Join(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChordNode_Join_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordNodeServer).Join(ctx, req.(*JoinRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChordNode_UpdatePredecessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdatePredecessorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordNodeServer).UpdatePredecessor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChordNode_UpdatePredecessor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordNodeServer).UpdatePredecessor(ctx, req.(*UpdatePredecessorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChordNode_UpdateSuccessor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateSuccessorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChordNodeServer).UpdateSuccessor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ChordNode_UpdateSuccessor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChordNodeServer).UpdateSuccessor(ctx, req.(*UpdateSuccessorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ChordNode_ServiceDesc is the grpc.ServiceDesc for ChordNode service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ChordNode_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "chord.ChordNode",
+	ServiceName: "pb.ChordNode",
 	HandlerType: (*ChordNodeServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -336,14 +404,22 @@ var ChordNode_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ChordNode_Get_Handler,
 		},
 		{
+			MethodName: "ReceiveFileInfo",
+			Handler:    _ChordNode_ReceiveFileInfo_Handler,
+		},
+		{
 			MethodName: "Join",
 			Handler:    _ChordNode_Join_Handler,
 		},
 		{
-			MethodName: "ReceiveFileInfo",
-			Handler:    _ChordNode_ReceiveFileInfo_Handler,
+			MethodName: "UpdatePredecessor",
+			Handler:    _ChordNode_UpdatePredecessor_Handler,
+		},
+		{
+			MethodName: "UpdateSuccessor",
+			Handler:    _ChordNode_UpdateSuccessor_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "node/chord.proto",
+	Metadata: "proto/chord.proto",
 }

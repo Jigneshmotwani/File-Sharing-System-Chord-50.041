@@ -67,6 +67,40 @@ func SHA1Hash(data string) *big.Int {
 	return bigIntHash
 }
 
+func NewNode(ip string, port int, m int) *Node {
+	address := ip + ":" + strconv.Itoa(port)
+	hash := sha1.Sum([]byte(address))
+
+	// Map the hash to the key space [0, 2^m)
+	hashInt := new(big.Int).SetBytes(hash[:])
+	modulo := new(big.Int).Lsh(big.NewInt(1), uint(m)) // 2^m
+	idInt := new(big.Int).Mod(hashInt, modulo)
+	idBytes := idInt.Bytes()
+
+	node := &Node{
+		id:          new(big.Int).SetBytes(idBytes),
+		ip:          ip,
+		port:        port,
+		successor:   nil,
+		predecessor: nil,
+	}
+
+	// Initially, the node's successor and predecessor are itself
+	node.successor = &Node{
+		id:   node.id,
+		ip:   node.ip,
+		port: node.port,
+	}
+
+	node.predecessor = &Node{
+		id:   node.id,
+		ip:   node.ip,
+		port: node.port,
+	}
+
+	return node
+}
+
 // findSuccessor finds the successor node for a given key.
 func (n *Node) findSuccessor(id *big.Int) (*Node, error) {
 	n.mutex.Lock()

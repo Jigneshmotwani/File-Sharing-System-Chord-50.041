@@ -9,9 +9,33 @@ service ChordNode {
   rpc GetPredecessor(EmptyRequest) returns (NodeInfo) {}
   rpc Notify(NodeInfo) returns (EmptyResponse) {}
   rpc Put(PutRequest) returns (PutResponse) {}
-  rpc Get(GetRequest) returns (GetResponse) {}
-  rpc Join(JoinRequest) returns (JoinResponse) {}
+  rpc Get(GetRequest) returns (GetResponse) {}  
   rpc ReceiveFileInfo(FileChunkInfo) returns (FileChunkResponse) {}
+  rpc Join(JoinRequest) returns (JoinResponse) {}
+  rpc UpdatePredecessor(UpdatePredecessorRequest) returns (UpdatePredecessorResponse) {}
+  rpc UpdateSuccessor(UpdateSuccessorRequest) returns (UpdateSuccessorResponse) {}
+}
+
+message JoinRequest {
+    NodeInfo node = 1;
+}
+
+message JoinResponse {
+    NodeInfo successor = 1;
+}
+
+message UpdatePredecessorRequest {
+    NodeInfo node = 1;
+}
+
+message UpdatePredecessorResponse {
+}
+
+message UpdateSuccessorRequest {
+    NodeInfo node = 1;
+}
+
+message UpdateSuccessorResponse {
 }
 
 message NodeInfo {
@@ -50,13 +74,8 @@ message GetResponse {
   bool found = 2;
 }
 
-message JoinRequest {
-  NodeInfo node = 1;
-}
 
-message JoinResponse {
-  NodeInfo successor = 1;
-}
+
 
 message FileChunkInfo {
   string filename = 1;
