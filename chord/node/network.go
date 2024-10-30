@@ -99,6 +99,7 @@ func (n *Node) JoinNetwork(existingNodeAddress string) error {
 	// Update predecessor's successor pointer
 	predConn, err := grpc.NewClient(fmt.Sprintf("%s:%d", prevNode.ip, prevNode.port),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
+
 	if err != nil {
 		return fmt.Errorf("failed to connect to predecessor: %v", err)
 	}
@@ -120,6 +121,10 @@ func (n *Node) JoinNetwork(existingNodeAddress string) error {
 
 	fmt.Printf("Node %x joined between %x and %x\n", n.id, prevNode.id, nextNode.id)
 	n.initializeFingerTables()
+
+	// update the finger table of the successor and predecessor
+	go n.predecessor.updateFingerTable()
+	go n.successor.updateFingerTable()
 	return nil
 }
 

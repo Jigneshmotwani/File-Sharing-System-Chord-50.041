@@ -260,3 +260,8 @@ func (n *Node) startFingerTableUpdater() {
 		}
 	}()
 }
+
+func (n *Node) StartPeriodicTasks() {
+	// go n.Stabilize()
+	go n.startFingerTableUpdater()
+}
