@@ -1,0 +1,113 @@
+# version: '3'
+# services:
+#   node1:
+#     build: .
+#     networks:
+#       - chord_network
+#     environment:
+#       - NODE_ID=1
+#       - NODE_ADDRESS=node1:8080
+#     hostname: node1
+
+#   node2:
+#     build: .
+#     networks:
+#       - chord_network
+#     environment:
+#       - NODE_ID=2
+#       - NODE_ADDRESS=node2:8080
+#     hostname: node2
+
+# networks:
+#   chord_network:
+#     driver: bridge
+
+# version: '3'
+
+# services:
+#   bootstrap-node:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     command: fts 8000
+#     ports:
+#       - "8000:8000"
+#     volumes:
+#       - bootstrap-data:/data
+#     networks:
+#       - chord-network
+
+#   node1:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     command: fts 8001 8000
+#     ports:
+#       - "8001:8001"
+#     volumes:
+#       - node1-data:/data
+#     depends_on:
+#       bootstrap-node:
+#         condition: service_healthy
+#     networks:
+#       - chord-network
+
+#   node2:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     command: fts 8002 8000
+#     ports:
+#       - "8002:8002"
+#     volumes:
+#       - node2-data:/data
+#     depends_on:
+#       bootstrap-node:
+#         condition: service_healthy
+#     networks:
+#       - chord-network
+
+# networks:
+#   chord-network:
+#     driver: bridge
+
+# volumes:
+#   bootstrap-data:
+#   node1-data:
+#   node2-data:
+
+version: '3.8'
+services:
+  node1:
+    build: .
+    environment:
+      NODE_IP: "node1"
+      JOIN_ADDR: ""
+    networks:
+      chordnet:
+        ipv4_address: 172.20.0.2
+
+  node2:
+    build: .
+    environment:
+      NODE_IP: "node2"
+      JOIN_ADDR: "node1:8080"
+    networks:
+      chordnet:
+        ipv4_address: 172.20.0.3
+
+  node3:
+    build: .
+    environment:
+      NODE_IP: "node3"
+      JOIN_ADDR: "node1:8080"
+    networks:
+      chordnet:
+        ipv4_address: 172.20.0.4
+
+networks:
+  chordnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
