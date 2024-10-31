@@ -14,12 +14,6 @@ services:
     networks:
       chord_net:
         ipv4_address: 172.20.0.2
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8000"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   peer:
     build: 
       context: .
@@ -28,9 +22,6 @@ services:
       - NODE_ROLE=peer
       - BOOTSTRAP_ADDR=172.20.0.2:8000
       - CHORD_PORT=8000
-    depends_on:
-      bootstrap:
-        condition: service_healthy
     networks:
       - chord_net
     deploy:

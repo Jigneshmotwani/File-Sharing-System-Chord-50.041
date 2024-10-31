@@ -2,7 +2,10 @@ package node
 
 import (
 	"crypto/sha1"
+	"fmt"
 	"math"
+	"net"
+	"net/rpc"
 	"time"
 )
 
@@ -20,6 +23,37 @@ type FingerTableEntry struct {
 }
 
 var m = 8
+
+func (n *Node) StartRPCServer() {
+	// Start the net RPC server
+	rpc.Register(n)
+
+	listener, err := net.Listen("tcp", n.IP)
+
+	if err != nil {
+		fmt.Printf("Error starting RPC server: %v\n", err)
+		return
+	}
+	
+	defer listener.Close()
+
+	fmt.Printf("Listening on %s\n", n.IP)
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Printf("[NODE-%d] accept error: %s\n", n.ID, err)
+			continue
+		}
+		go rpc.ServeConn(conn)
+	}
+}
+
+func (n *Node) ReceiveMessage(message string, reply *string) error {
+	fmt.Printf("[NODE-%d] Received message: %s\n", n.ID, message)
+	*reply = "Message received"
+	return nil
+}
 
 func NewNode(ip string) *Node {
 	h := sha1.New()
