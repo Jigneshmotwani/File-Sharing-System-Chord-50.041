@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,15 +15,17 @@ import (
 var n *node.Node
 
 func main() {
-	ip := os.Getenv("NODE_IP")
-	if ip == "" {
-		log.Fatal("NODE_IP environment variable not set")
+	joinAddr := os.Getenv("BOOTSTRAP_ADDR")
+	ip, err := GetContainerIP()
+
+	if err != nil {
+		log.Fatalf("Failed to get container IP: %v", err)
 	}
+
+	log.Printf("Node starting at %s", ip)
 
 	n = node.NewNode(ip)
 
-	// If there's a known node to join, attempt to connect with retries
-	joinAddr := os.Getenv("JOIN_ADDR")
 	if joinAddr != "" {
 		for i := 0; i < 5; i++ {
 			err := attemptJoin(joinAddr)
@@ -82,4 +85,27 @@ func attemptJoin(joinAddr string) error {
 		return fmt.Errorf("failed to join, status: %s", resp.Status)
 	}
 	return nil
+}
+
+func GetContainerIP() (string, error) {
+	// Getting IP address of the container from eth0 interface
+	iface, err := net.InterfaceByName("eth0")
+	if err != nil {
+		return "", fmt.Errorf("failed to get eth0 interface: %v", err)
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return "", fmt.Errorf("failed to get addresses for eth0: %v", err)
+	}
+
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok {
+			if ipv4 := ipnet.IP.To4(); ipv4 != nil {
+				return ipv4.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no IPv4 address found for eth0")
 }
