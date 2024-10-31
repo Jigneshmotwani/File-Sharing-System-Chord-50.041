@@ -1,0 +1,46 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  bootstrap:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ROLE=bootstrap
+      - CHORD_PORT=5000
+    ports:
+      - "5000:5000"
+    networks:
+      chord_net:
+        ipv4_address: 172.20.0.2
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5000"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  peer:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ROLE=peer
+      - BOOTSTRAP_ADDR=172.20.0.2:5000
+      - CHORD_PORT=5000
+    depends_on:
+      bootstrap:
+        condition: service_healthy
+    networks:
+      - chord_net
+    deploy:
+      replicas: 0  # Start with 0 replicas, scale as needed
+
+networks:
+  chord_net:
+    name: chord_net
+    driver: bridge
+    external: false
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
