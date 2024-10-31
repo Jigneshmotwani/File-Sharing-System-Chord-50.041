@@ -9,7 +9,6 @@ services:
     environment:
       - NODE_ROLE=bootstrap
       - CHORD_PORT=8000
-      - BOOTSTRAP_ADDR=""
     ports:
       - "8000:8000"
     networks:
