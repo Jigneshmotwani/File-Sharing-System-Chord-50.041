@@ -3,6 +3,8 @@ package node
 import (
 	"crypto/sha1"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 type Node struct {
@@ -11,6 +13,7 @@ type Node struct {
 	Successor   *Node
 	Predecessor *Node
 	FingerTable []*FingerTableEntry
+	grpcServer  *grpc.Server
 }
 
 type FingerTableEntry struct {
