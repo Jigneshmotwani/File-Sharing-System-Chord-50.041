@@ -1,20 +1,26 @@
 package node
 
 import (
-	"crypto/sha1"
+	"distributed-chord/utils"
 	"fmt"
+	"log"
 	"math"
 	"net"
 	"net/rpc"
 	"time"
 )
 
+type Pointer struct {
+	ID int // Node ID
+	IP string // Node IP address with the port
+}
+
 type Node struct {
 	ID          int
 	IP          string
-	Successor   *Node
-	Predecessor *Node
-	FingerTable []*FingerTableEntry
+	Successor   Pointer
+	Predecessor Pointer
+	FingerTable []Pointer
 }
 
 type FingerTableEntry struct {
@@ -22,8 +28,11 @@ type FingerTableEntry struct {
 	node *Node
 }
 
-var m = 8
+const (
+	m = 32
+)
 
+// Starting the RPC server for the nodes
 func (n *Node) StartRPCServer() {
 	// Start the net RPC server
 	rpc.Register(n)
@@ -49,48 +58,23 @@ func (n *Node) StartRPCServer() {
 	}
 }
 
+
+func (n *Node) StartBootstrap() {
+	go n.Stabilize()
+	go n.FixFingers()
+}
+
 func (n *Node) ReceiveMessage(message string, reply *string) error {
 	fmt.Printf("[NODE-%d] Received message: %s\n", n.ID, message)
 	*reply = "Message received"
 	return nil
 }
 
-func NewNode(ip string) *Node {
-	h := sha1.New()
-	h.Write([]byte(ip))
-	id := int(h.Sum(nil)[0])
-
-	node := &Node{
-		ID:          id,
-		IP:          ip,
-		Successor:   nil,
-		Predecessor: nil,
-		FingerTable: make([]*FingerTableEntry, m),
-	}
-
-	for i := 0; i < m; i++ {
-		node.FingerTable[i] = &FingerTableEntry{
-			key:  (node.ID+2^i)%2 ^ m,
-			node: nil,
-		}
-	}
-
-	node.Successor = node
-
-	// Initialize finger table entries to point to self
-	for i := 0; i < m; i++ {
-		node.FingerTable[i].node = node
-	}
-
-	return node
+func (n *Node) JoinNetwork(message Message, reply *Message) error {
+	n.FindSuccessor(message.ID)
 }
 
-func (n *Node) FindSuccessor(id int) *Node {
-	// Handle nil successor case
-	if n.Successor == nil {
-		return n
-	}
-
+func (n *Node) FindSuccessor(id int) Pointer {
 	if n.ID < n.Successor.ID && id > n.ID && id <= n.Successor.ID {
 		return n.Successor
 	} else {
@@ -113,21 +97,24 @@ func (n *Node) closestPrecedingNode(id int) *Node {
 	return n
 }
 
-func (n *Node) Join(existingNode *Node) {
-	if existingNode != nil {
-		n.Predecessor = nil
-		n.Successor = existingNode.FindSuccessor(n.ID)
-		// Initialize finger table
-		n.initFingerTable(existingNode)
-	} else {
-		n.Predecessor = n
-		n.Successor = n
+// Handled by the bootstrap node
+func (n *Node) Join(joinIP string) {
+		// Joining the network
 
-		// Initialize all fingers to point to self
-		for i := 0; i < m; i++ {
-			n.FingerTable[i].node = n
+		client, err := rpc.Dial("tcp", joinIP)
+		if err != nil {
+			log.Fatalf("Failed to connect to bootstrap node: %v", err)
 		}
-	}
+
+		message := Message{
+			Type: "Join",
+			ID: n.ID,
+		}
+
+		var reply Message
+		client.Call("Node.JoinNetwork", message, &reply)
+		n.Predecessor = Pointer{}
+		n.Successor = Pointer{ID: reply.ID, IP: reply.IP}
 }
 
 func (n *Node) initFingerTable(existingNode *Node) {
@@ -179,6 +166,7 @@ func (n *Node) FixFingers() {
 	}
 }
 
+// Fault tolerance
 func (n *Node) CheckPredecessor() {
 	for {
 		time.Sleep(time.Second)
@@ -186,4 +174,17 @@ func (n *Node) CheckPredecessor() {
 			n.Predecessor.Predecessor = nil
 		}
 	}
+}
+
+func CreateNode(ip string) *Node {
+	id := utils.Hash(ip)
+
+	node := &Node{
+		ID:          id,
+		IP:          ip,
+		Successor:  Pointer{ID: id, IP: ip},
+		FingerTable: make([]Pointer, m),
+	}
+
+	return node
 }

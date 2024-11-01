@@ -2,9 +2,9 @@ package main
 
 import (
 	"distributed-chord/node"
+	"distributed-chord/utils"
 	"fmt"
 	"log"
-	"net"
 	"net/rpc"
 	"os"
 )
@@ -26,13 +26,13 @@ func main() {
 	// 	fmt.Println("No chunks were created.")
 	// }
 
-	containerIP, err := GetContainerIP()
+	containerIP, err := utils.GetContainerIP()
 
 	fmt.Printf("Container IP: %s\n", containerIP)
 	if err != nil {
 		log.Fatalf("Failed to get container IP: %v", err)
 	}
-	n := node.NewNode(containerIP + ":" + chordPort)
+	n := node.CreateNode(containerIP + ":" + chordPort)
 
 	// fca.Assembler(fca.ChunkInfo{[]string{"Node2", "Node4", "Node1"}, "C__Users_saran_Documents_GitHub_File-Sharing-System-Chord-50.041_Data_Node1_file"})
 	// Start the RPC server
@@ -40,12 +40,11 @@ func main() {
 	// Check if the node is a bootstrap node or not
 
 	if joinAddr != "" {
-		client, err := rpc.Dial("tcp", joinAddr)
-		if err != nil {
-			log.Fatalf("Failed to connect to bootstrap node: %v", err)
-		}
-		var reply string
-		client.Call("Node.ReceiveMessage", "Hello", &reply)
+		// Join the network
+		n.Join(joinAddr)
+	} else {
+		// Startup the bootstrap node
+		n.StartBootstrap()
 	}
 
 	// // Join the network or create a new one
@@ -179,25 +178,4 @@ func main() {
 // 	return "", fmt.Errorf("no IPv4 address found for eth0")
 // }
 
-func GetContainerIP() (string, error) {
-	// Getting IP address of the container from eth0 interface
-	iface, err := net.InterfaceByName("eth0")
-	if err != nil {
-		return "", fmt.Errorf("failed to get eth0 interface: %v", err)
-	}
 
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return "", fmt.Errorf("failed to get addresses for eth0: %v", err)
-	}
-
-	for _, addr := range addrs {
-		if ipnet, ok := addr.(*net.IPNet); ok {
-			if ipv4 := ipnet.IP.To4(); ipv4 != nil {
-				return ipv4.String(), nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("no IPv4 address found for eth0")
-}
