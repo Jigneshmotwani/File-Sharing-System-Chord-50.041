@@ -5,9 +5,22 @@ import (
 	"distributed-chord/utils"
 	"fmt"
 	"log"
-	"net/rpc"
 	"os"
+	"time"
 )
+
+func showmenu() {
+	red := "\033[31m"  // ANSI code for red text
+	reset := "\033[0m" // ANSI code to reset color
+
+	fmt.Println(red + "--------------------------------" + reset)
+	fmt.Println(red + "\t\tMENU" + reset)
+	fmt.Println(red + "Press 1 to see the fingertable" + reset)
+	fmt.Println(red + "Press 2 to see the successor and predecessor" + reset)
+	fmt.Println(red + "Press 3 to do the file transfer" + reset)
+	fmt.Println(red + "Press m to see the menu" + reset)
+	fmt.Println(red + "--------------------------------" + reset)
+}
 
 func main() {
 	joinAddr := os.Getenv("BOOTSTRAP_ADDR")
@@ -34,6 +47,8 @@ func main() {
 	}
 	n := node.CreateNode(containerIP + ":" + chordPort)
 
+	fmt.Printf("Node %d created\n", n.ID)
+
 	// fca.Assembler(fca.ChunkInfo{[]string{"Node2", "Node4", "Node1"}, "C__Users_saran_Documents_GitHub_File-Sharing-System-Chord-50.041_Data_Node1_file"})
 	// Start the RPC server
 	go n.StartRPCServer()
@@ -46,7 +61,40 @@ func main() {
 		// Startup the bootstrap node
 		n.StartBootstrap()
 	}
+	
+	for {
+		var choice int
+		fmt.Print("Enter choice: ")
+		fmt.Scan(&choice)
 
+		switch choice {
+		case 1:
+			fmt.Println("Finger Table:", n.FingerTable)
+		case 2:
+			fmt.Printf("Successor: %v, Predecessor: %v\n", n.Successor, n.Predecessor)
+		case 3:
+			var targetNodeIP, fileName string
+			fmt.Print("Enter the IP address of the target node: ")
+			fmt.Scan(&targetNodeIP)
+			fmt.Print("Enter the file name to transfer: ")
+			fmt.Scan(&fileName)
+			fmt.Printf("File transfer initiated successfully.\n")
+			fmt.Printf("File Name: %s, Target Node IP: %s\n", fileName, targetNodeIP)
+
+			// Call a function to handle the file transfer (implement this function in node package)
+			// err := n.TransferFile(targetNodeIP, fileName)
+			// if err != nil {
+			// 	fmt.Printf("File transfer failed: %v\n", err)
+			// } else {
+			// 	fmt.Println("File transfer initiated successfully.")
+			// }
+		case 'm':
+			showmenu()
+		default:
+			fmt.Println("Invalid choice")
+		}
+		time.Sleep(time.Second)
+	}
 	// // Join the network or create a new one
 	// if *joinAddr != "" {
 	// 	fmt.Printf("Node %x joining the network via %s...\n", n.ID, *joinAddr)

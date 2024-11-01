@@ -24,6 +24,8 @@ services:
       - CHORD_PORT=8000
     networks:
       - chord_net
+    stdin_open: true
+    tty: true
     deploy:
       replicas: 0  # Start with 0 replicas, scale as needed
 
