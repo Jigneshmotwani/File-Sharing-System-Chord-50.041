@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	m = 32 // number of bits to consider for the final hash value
+	m = 5 // number of bits to consider for the final hash value
 )
 
 // Add hash function here

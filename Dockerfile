@@ -12,4 +12,4 @@ RUN apt-get update && apt-get install -y netcat-traditional
 COPY . .
 RUN go build -v -o /usr/local/bin/fts ./main.go
 
-CMD ["fts"]
+# CMD ["fts"]

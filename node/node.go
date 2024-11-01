@@ -11,7 +11,7 @@ import (
 )
 
 type Pointer struct {
-	ID int // Node ID
+	ID int    // Node ID
 	IP string // Node IP address with the port
 }
 
@@ -24,7 +24,8 @@ type Node struct {
 }
 
 const (
-	m = 32
+	timeInterval = 10 * time.Second
+	m            = 5
 )
 
 // Starting the RPC server for the nodes
@@ -38,7 +39,7 @@ func (n *Node) StartRPCServer() {
 		fmt.Printf("Error starting RPC server: %v\n", err)
 		return
 	}
-	
+
 	defer listener.Close()
 
 	fmt.Printf("Listening on %s\n", n.IP)
@@ -111,31 +112,35 @@ func (n *Node) closestPrecedingNode(id int) Pointer {
 
 // Handled by the bootstrap node
 func (n *Node) Join(joinIP string) {
-		// Joining the network
-		message := Message{
-			Type: "Join",
-			ID: n.ID,
-		}
+	// Joining the network
+	message := Message{
+		Type: "Join",
+		ID:   n.ID,
+	}
 
-		reply, err := CallRPCMethod(joinIP, "Node.FindSuccessor", message)
+	reply, err := CallRPCMethod(joinIP, "Node.FindSuccessor", message)
 
-		if err != nil {
-			log.Fatalf("Failed to join network: %v", err)
-		}
-		n.Predecessor = Pointer{}
-		n.Successor = Pointer{ID: reply.ID, IP: reply.IP}
+	if err != nil {
+		log.Fatalf("Failed to join network: %v", err)
+	}
+	n.Predecessor = Pointer{}
+	n.Successor = Pointer{ID: reply.ID, IP: reply.IP}
 
-		// Notify the node of the new successor
-		message = Message{
-			Type: "Notify",
-			ID: n.ID,
-			IP: n.IP,
-		}
+	// Notify the node of the new successor
+	message = Message{
+		Type: "Notify",
+		ID:   n.ID,
+		IP:   n.IP,
+	}
 
-		_, err = CallRPCMethod(reply.IP, "Node.Notify", message)
-		if err != nil {
-			log.Fatalf("Failed to notify successor: %v", err)
-		}
+	_, err = CallRPCMethod(reply.IP, "Node.Notify", message)
+	if err != nil {
+		log.Fatalf("Failed to notify successor: %v", err)
+	}
+
+	go n.Stabilize()
+	go n.FixFingers()
+
 }
 
 // func (n *Node) initFingerTable(existingNode *Node) {
@@ -154,7 +159,7 @@ func (n *Node) Join(joinIP string) {
 func (n *Node) Stabilize() {
 	for {
 		fmt.Printf("Stabilizing...\n")
-		time.Sleep(2 * time.Second)
+		time.Sleep(timeInterval)
 		reply, err := CallRPCMethod(n.Successor.IP, "Node.GetPredecessor", Message{})
 		if err != nil {
 			fmt.Printf("Failed to get predecessor: %v\n", err)
@@ -164,14 +169,14 @@ func (n *Node) Stabilize() {
 		if successorPredecessor != (Pointer{}) && successorPredecessor.ID > n.ID && successorPredecessor.ID < n.Successor.ID {
 			n.Successor = successorPredecessor
 		}
-		
+
 		// Notify the successor of the new predecessor
 		_, err = CallRPCMethod(n.Successor.IP, "Node.Notify", Message{ID: n.ID, IP: n.IP})
 
 		if err != nil {
 			fmt.Printf("Failed to notify successor: %v\n", err)
 		}
-		
+
 	}
 }
 
@@ -195,8 +200,7 @@ func (n *Node) FixFingers() {
 	next := 0
 	for {
 		fmt.Printf("Fixing fingers...\n")
-		time.Sleep(2 * time.Second)
-		next = (next + 1) % m
+		time.Sleep(timeInterval)
 
 		// Safely calculate the start of finger interval
 		start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(m)))
@@ -211,6 +215,8 @@ func (n *Node) FixFingers() {
 			continue
 		}
 		n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
+
+		next = (next + 1) % m
 	}
 }
 
@@ -230,7 +236,7 @@ func CreateNode(ip string) *Node {
 	node := &Node{
 		ID:          id,
 		IP:          ip,
-		Successor:  Pointer{ID: id, IP: ip},
+		Successor:   Pointer{ID: id, IP: ip},
 		FingerTable: make([]Pointer, m),
 	}
 

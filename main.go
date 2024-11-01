@@ -18,7 +18,7 @@ func showmenu() {
 	fmt.Println(red + "Press 1 to see the fingertable" + reset)
 	fmt.Println(red + "Press 2 to see the successor and predecessor" + reset)
 	fmt.Println(red + "Press 3 to do the file transfer" + reset)
-	fmt.Println(red + "Press m to see the menu" + reset)
+	fmt.Println(red + "Press 4 to see the menu" + reset)
 	fmt.Println(red + "--------------------------------" + reset)
 }
 
@@ -61,11 +61,14 @@ func main() {
 		// Startup the bootstrap node
 		n.StartBootstrap()
 	}
-	
+
+	showmenu()
+
 	for {
 		var choice int
-		fmt.Print("Enter choice: ")
+		fmt.Print("Enter choice:")
 		fmt.Scan(&choice)
+		time.Sleep(1 * time.Second)
 
 		switch choice {
 		case 1:
@@ -76,10 +79,13 @@ func main() {
 			var targetNodeIP, fileName string
 			fmt.Print("Enter the IP address of the target node: ")
 			fmt.Scan(&targetNodeIP)
+			time.Sleep(1 * time.Second)
 			fmt.Print("Enter the file name to transfer: ")
 			fmt.Scan(&fileName)
+			time.Sleep(1 * time.Second)
 			fmt.Printf("File transfer initiated successfully.\n")
 			fmt.Printf("File Name: %s, Target Node IP: %s\n", fileName, targetNodeIP)
+			time.Sleep(1 * time.Second)
 
 			// Call a function to handle the file transfer (implement this function in node package)
 			// err := n.TransferFile(targetNodeIP, fileName)
@@ -88,12 +94,12 @@ func main() {
 			// } else {
 			// 	fmt.Println("File transfer initiated successfully.")
 			// }
-		case 'm':
+		case 4:
 			showmenu()
 		default:
 			fmt.Println("Invalid choice")
 		}
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	// // Join the network or create a new one
 	// if *joinAddr != "" {
@@ -160,8 +166,9 @@ func main() {
 	// }()
 
 	// Keep the main function running
-	select {}
+	// select {}
 }
+
 // var n *node.Node
 
 // func main() {
@@ -225,5 +232,3 @@ func main() {
 
 // 	return "", fmt.Errorf("no IPv4 address found for eth0")
 // }
-
-
