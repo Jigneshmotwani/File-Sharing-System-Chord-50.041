@@ -46,3 +46,20 @@ func GetContainerIP() (string, error) {
 
 	return "", fmt.Errorf("no IPv4 address found for eth0")
 }
+
+func Between(id int, a int, b int, equalsTo bool) bool {
+	if a == b {
+		return true
+	} 
+	if a < b {
+		if equalsTo {
+			return id > a && id <= b
+		}
+		return id > a && id < b
+	} else {
+		if equalsTo {
+			return id > a || id <= b
+		}
+		return id > a || id < b
+	}
+}

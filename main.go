@@ -59,7 +59,9 @@ func main() {
 		n.Join(joinAddr)
 	}
 
+	// Stabilize the chord network
 	go n.Stabilize()
+	// Update finger table
 	go n.FixFingers()
 
 	showmenu()

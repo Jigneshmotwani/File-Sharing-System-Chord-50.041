@@ -22,7 +22,7 @@ type Node struct {
 	Successor   Pointer
 	Predecessor Pointer
 	FingerTable []Pointer
-	Lock sync.Mutex
+	Lock        sync.Mutex
 }
 
 const (
@@ -58,7 +58,7 @@ func (n *Node) StartRPCServer() {
 
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
 	fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
-	if message.ID > n.ID && message.ID <= n.Successor.ID {
+	if utils.Between(message.ID, n.ID, n.Successor.ID, true) {
 		*reply = Message{
 			ID: n.Successor.ID,
 			IP: n.Successor.IP,
@@ -87,7 +87,7 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 
 func (n *Node) closestPrecedingNode(id int) Pointer {
 	for i := m - 1; i >= 0; i-- {
-		if n.FingerTable[i].ID > n.ID && n.FingerTable[i].ID < id {
+		if utils.Between(n.FingerTable[i].ID, n.ID, id, false) {
 			return n.FingerTable[i]
 		}
 	}
@@ -99,8 +99,8 @@ func (n *Node) Join(joinIP string) {
 	// Joining the network
 	message := Message{
 		Type: "Join",
-		ID: n.ID,
-		IP: n.IP,
+		ID:   n.ID,
+		IP:   n.IP,
 	}
 
 	reply, err := CallRPCMethod(joinIP, "Node.FindSuccessor", message)
@@ -115,9 +115,9 @@ func (n *Node) Join(joinIP string) {
 
 	// Notify the node of the new successor
 	message = Message{
-		Type: "Notify",
-		ID: n.ID,
-		IP: n.IP,
+		Type: "NOTIFY",
+		ID:   n.ID,
+		IP:   n.IP,
 	}
 
 	_, err = CallRPCMethod(reply.IP, "Node.Notify", message)
@@ -137,22 +137,21 @@ func (n *Node) Stabilize() {
 		}
 
 		successorPredecessor := Pointer{ID: reply.ID, IP: reply.IP}
-		if successorPredecessor != (Pointer{}) && successorPredecessor.ID > n.ID && successorPredecessor.ID < n.Successor.ID {
+		if (successorPredecessor != Pointer{} && utils.Between(successorPredecessor.ID, n.ID, n.Successor.ID, false)) {
 			n.Successor = successorPredecessor
 		}
-		
+
 		// Notify the successor of the new predecessor
 		message := Message{
 			Type: "NOTIFY",
-			ID: n.ID, 
-			IP: n.IP,
+			ID:   n.ID,
+			IP:   n.IP,
 		}
 		_, err = CallRPCMethod(n.Successor.IP, "Node.Notify", message)
 
 		if err != nil {
 			fmt.Printf("[NODE-%d] Failed to notify successor: %v\n", n.ID, err)
 		}
-		
 	}
 }
 
@@ -166,7 +165,7 @@ func (n *Node) GetPredecessor(message Message, reply *Message) error {
 
 func (n *Node) Notify(message Message, reply *Message) error {
 	fmt.Printf("[NODE-%d] Getting notified by node %d...\n", n.ID, message.ID)
-	if n.Predecessor == (Pointer{}) || (message.ID > n.Predecessor.ID && message.ID < n.ID) {
+	if (n.Predecessor == Pointer{} || utils.Between(message.ID, n.Predecessor.ID, n.ID, false)) {
 		n.Predecessor = Pointer{ID: message.ID, IP: message.IP}
 		fmt.Printf("[NODE-%d] Predecessor updated to %d\n", n.ID, n.Predecessor.ID)
 	}
@@ -174,29 +173,35 @@ func (n *Node) Notify(message Message, reply *Message) error {
 }
 
 func (n *Node) FixFingers() {
-	next := 0
+	// next := 0
 	for {
 		time.Sleep((timeInterval + 2) * time.Second)
 
-		// Safely calculate the start of finger interval
-		start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(m)))
+		for next := 0; next < m; next++ {
+			// Safely calculate the start of finger interval
+			start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(m)))
 
-		
-		fmt.Printf("[NODE-%d] Fixing finger for key %d \n", n.ID, start)
-		// Find and update successor for this finger
-		message := Message{ID: start}
-		var reply Message
-		err := n.FindSuccessor(message, &reply)
+			fmt.Printf("[NODE-%d] Fixing finger for key %d \n", n.ID, start)
+			// Find and update successor for this finger
+			message := Message{ID: start}
+			var reply Message
+			err := n.FindSuccessor(message, &reply)
+			fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
 
-		if err != nil {
-			fmt.Printf("[NODE-%d] Failed to find successor: %v\n", n.ID, err)
-			continue
+			if err != nil {
+				fmt.Printf("[NODE-%d] Failed to find successor: %v\n", n.ID, err)
+				continue
+			}
+
+			n.Lock.Lock()	
+			n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
+			n.Lock.Unlock()
+
+			// n.Lock.Lock()
+			// n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
+			// next = (next + 1) % m
+			// n.Lock.Unlock()
 		}
-
-		n.Lock.Lock()
-		n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
-		next = (next + 1) % m
-		n.Lock.Unlock()
 	}
 }
 
@@ -211,7 +216,7 @@ func (n *Node) FixFingers() {
 // }
 
 func CreateNode(ip string) *Node {
-	id := utils.Hash(ip) 
+	id := utils.Hash(ip)
 
 	node := &Node{
 		ID:          id,
@@ -219,7 +224,7 @@ func CreateNode(ip string) *Node {
 		Successor:   Pointer{ID: id, IP: ip},
 		Predecessor: Pointer{},
 		FingerTable: make([]Pointer, m),
-		Lock: sync.Mutex{},
+		Lock:        sync.Mutex{},
 	}
 
 	return node
