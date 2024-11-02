@@ -25,9 +25,15 @@ type Node struct {
 	Lock        sync.Mutex
 }
 
+type NodeInfo struct {
+	ID        int
+	IP        string
+	Successor Pointer
+}
+
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
-	m            = 5 // Number of rows in the finger table
+	m            = 5 // Number of bits in the identifier space
 )
 
 // Starting the RPC server for the nodes
@@ -56,9 +62,24 @@ func (n *Node) StartRPCServer() {
 	}
 }
 
+// Ring comparison functions
+func between(start, end, id int) bool {
+	if start < end {
+		return id > start && id < end
+	}
+	return id > start || id < end
+}
+
+func betweenRightInc(start, end, id int) bool {
+	if start < end {
+		return id > start && id <= end
+	}
+	return id > start || id <= end
+}
+
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
 	fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
-	if utils.Between(message.ID, n.ID, n.Successor.ID, true) {
+	if betweenRightInc(n.ID, n.Successor.ID, message.ID) {
 		*reply = Message{
 			ID: n.Successor.ID,
 			IP: n.Successor.IP,
@@ -140,7 +161,7 @@ func (n *Node) Stabilize() {
 		}
 
 		successorPredecessor := Pointer{ID: reply.ID, IP: reply.IP}
-		if (successorPredecessor != Pointer{} && utils.Between(successorPredecessor.ID, n.ID, n.Successor.ID, false)) {
+		if successorPredecessor != (Pointer{}) && between(n.ID, n.Successor.ID, successorPredecessor.ID) {
 			n.Successor = successorPredecessor
 		}
 
@@ -168,7 +189,7 @@ func (n *Node) GetPredecessor(message Message, reply *Message) error {
 
 func (n *Node) Notify(message Message, reply *Message) error {
 	fmt.Printf("[NODE-%d] Getting notified by node %d...\n", n.ID, message.ID)
-	if (n.Predecessor == Pointer{} || utils.Between(message.ID, n.Predecessor.ID, n.ID, false)) {
+	if n.Predecessor == (Pointer{}) || between(n.Predecessor.ID, n.ID, message.ID) {
 		n.Predecessor = Pointer{ID: message.ID, IP: message.IP}
 		fmt.Printf("[NODE-%d] Predecessor updated to %d\n", n.ID, n.Predecessor.ID)
 	}
@@ -176,7 +197,6 @@ func (n *Node) Notify(message Message, reply *Message) error {
 }
 
 func (n *Node) FixFingers() {
-	// next := 0
 	for {
 		time.Sleep((timeInterval + 2) * time.Second)
 
@@ -189,37 +209,21 @@ func (n *Node) FixFingers() {
 			message := Message{ID: start}
 			var reply Message
 			err := n.FindSuccessor(message, &reply)
-			fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
-
 			if err != nil {
 				fmt.Printf("[NODE-%d] Failed to find successor: %v\n", n.ID, err)
 				continue
 			}
+			fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
 
 			n.Lock.Lock()
 			n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
 			n.Lock.Unlock()
-
-			// n.Lock.Lock()
-			// n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
-			// next = (next + 1) % m
-			// n.Lock.Unlock()
 		}
 	}
 }
 
-// // Fault tolerance
-// func (n *Node) CheckPredecessor() {
-// 	for {
-// 		time.Sleep(time.Second)
-// 		if n.Predecessor != nil {
-// 			n.Predecessor.Predecessor = nil
-// 		}
-// 	}
-// }
-
 func CreateNode(ip string) *Node {
-	id := utils.Hash(ip)
+	id := utils.Hash(ip) % int(math.Pow(2, float64(m))) // Ensure ID is within [0, 2^m - 1]
 
 	node := &Node{
 		ID:          id,
@@ -228,6 +232,11 @@ func CreateNode(ip string) *Node {
 		Predecessor: Pointer{},
 		FingerTable: make([]Pointer, m),
 		Lock:        sync.Mutex{},
+	}
+
+	// Initialize finger table with self to prevent nil entries
+	for i := 0; i < m; i++ {
+		node.FingerTable[i] = Pointer{ID: node.ID, IP: node.IP}
 	}
 
 	return node
@@ -240,11 +249,20 @@ func CallRPCMethod(ip string, method string, message Message) (*Message, error) 
 	}
 	defer client.Close()
 
-	var reply *Message
+	var reply Message
 	err = client.Call(method, message, &reply)
 	if err != nil {
 		return &Message{}, fmt.Errorf("[NODE-%d] Failed to call method: %v", message.ID, err)
 	}
 
-	return reply, nil
+	return &reply, nil
+}
+
+func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+	reply.ID = n.ID
+	reply.IP = n.IP
+	reply.Successor = n.Successor
+	return nil
 }
