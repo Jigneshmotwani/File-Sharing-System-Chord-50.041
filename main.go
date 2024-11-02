@@ -57,10 +57,14 @@ func main() {
 	if joinAddr != "" {
 		// Join the network
 		n.Join(joinAddr)
-	} else {
-		// Startup the bootstrap node
-		n.StartBootstrap()
 	}
+	// else {
+	// 	// Startup the bootstrap node
+	// 	n.StartBootstrap()
+	// }
+
+	go n.Stabilize()
+	go n.FixFingers()
 
 	showmenu()
 
@@ -79,13 +83,13 @@ func main() {
 			var targetNodeIP, fileName string
 			fmt.Print("Enter the IP address of the target node: ")
 			fmt.Scan(&targetNodeIP)
-			time.Sleep(1 * time.Second)
+			// time.Sleep(5 * time.Second)
 			fmt.Print("Enter the file name to transfer: ")
 			fmt.Scan(&fileName)
-			time.Sleep(1 * time.Second)
+			// time.Sleep(5 * time.Second)
 			fmt.Printf("File transfer initiated successfully.\n")
 			fmt.Printf("File Name: %s, Target Node IP: %s\n", fileName, targetNodeIP)
-			time.Sleep(1 * time.Second)
+			// time.Sleep(5 * time.Second)
 
 			// Call a function to handle the file transfer (implement this function in node package)
 			// err := n.TransferFile(targetNodeIP, fileName)
@@ -99,7 +103,7 @@ func main() {
 		default:
 			fmt.Println("Invalid choice")
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	// // Join the network or create a new one
 	// if *joinAddr != "" {
