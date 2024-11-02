@@ -23,7 +23,16 @@ docker container ls
 ```
 Once you obtain the container ID of the bootstrap and peer nodes, you can run the following command to initiate the chord network and see the logs of the nodes:
 ```bash 
-docker exec -it <container_id> bash
+docker exec -it file-sharing-system-chord-50041-bootstrap-1 bash
+fts
+
+docker exec -it file-sharing-system-chord-50041-peer-1 bash
+fts
+
+docker exec -it file-sharing-system-chord-50041-peer-2 bash
+fts
+
+docker exec -it file-sharing-system-chord-50041-peer-3 bash
 fts
 ```
 4. Once you are done with the execution, you can stop the containers by running the following command:

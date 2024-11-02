@@ -79,7 +79,10 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 		if err != nil {
 			return fmt.Errorf("[NODE-%d] Failed to call FindSuccessor: %v\n", n.ID, err)
 		}
-		reply = newReply
+		*reply = Message{
+			ID: newReply.ID,
+			IP: newReply.IP,
+		}
 		fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
 		return nil
 	}
@@ -87,7 +90,7 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 
 func (n *Node) closestPrecedingNode(id int) Pointer {
 	for i := m - 1; i >= 0; i-- {
-		if utils.Between(n.FingerTable[i].ID, n.ID, id, false) {
+		if utils.Between(n.FingerTable[i].ID, n.ID, id, true) {
 			return n.FingerTable[i]
 		}
 	}
@@ -193,7 +196,7 @@ func (n *Node) FixFingers() {
 				continue
 			}
 
-			n.Lock.Lock()	
+			n.Lock.Lock()
 			n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
 			n.Lock.Unlock()
 
