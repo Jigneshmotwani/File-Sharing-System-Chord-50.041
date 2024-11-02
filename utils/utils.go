@@ -18,10 +18,10 @@ func Hash(s string) int {
 
 	hashBytes := h.Sum(nil)
 
-	unModdedID := binary.BigEndian.Uint64(hashBytes[:8]) // Gets the first 8 bytes of the hash
-	moddedID := unModdedID % (1 << m)                    // Mod the ID by 2^m
+	unModdedID := binary.BigEndian.Uint64(hashBytes[len(hashBytes)-8:]) // Gets the first 8 bytes of the hash
+	moddedID := unModdedID % (1 << m)                                   // Mod the ID by 2^m
 
-	return int(moddedID) % m
+	return int(moddedID)
 }
 
 func GetContainerIP() (string, error) {
@@ -50,7 +50,7 @@ func GetContainerIP() (string, error) {
 func Between(id int, a int, b int, equalsTo bool) bool {
 	if a == b {
 		return true
-	} 
+	}
 	if a < b {
 		if equalsTo {
 			return id > a && id <= b
