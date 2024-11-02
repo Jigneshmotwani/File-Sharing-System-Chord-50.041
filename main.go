@@ -58,10 +58,6 @@ func main() {
 		// Join the network
 		n.Join(joinAddr)
 	}
-	// else {
-	// 	// Startup the bootstrap node
-	// 	n.StartBootstrap()
-	// }
 
 	go n.Stabilize()
 	go n.FixFingers()
@@ -168,9 +164,6 @@ func main() {
 	// 		}
 	// 	}
 	// }()
-
-	// Keep the main function running
-	// select {}
 }
 
 // var n *node.Node
