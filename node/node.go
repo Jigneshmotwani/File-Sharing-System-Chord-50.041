@@ -33,7 +33,6 @@ type NodeInfo struct {
 
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
-	m            = 5 // Number of bits in the identifier space
 )
 
 // Starting the RPC server for the nodes
@@ -93,7 +92,7 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 }
 
 func (n *Node) closestPrecedingNode(id int) Pointer {
-	for i := m - 1; i >= 0; i-- {
+	for i := utils.M - 1; i >= 0; i-- {
 		if utils.Between(n.FingerTable[i].ID, n.ID, id, false) {
 			return n.FingerTable[i]
 		}
@@ -184,9 +183,9 @@ func (n *Node) FixFingers() {
 	for {
 		time.Sleep((timeInterval + 2) * time.Second)
 
-		for next := 0; next < m; next++ {
+		for next := 0; next < utils.M; next++ {
 			// Calculate the start of the finger interval
-			start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(m)))
+			start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(utils.M)))
 
 			fmt.Printf("[NODE-%d] Fixing finger %d for key %d\n", n.ID, next, start)
 			// Find and update successor for this finger
@@ -207,19 +206,19 @@ func (n *Node) FixFingers() {
 }
 
 func CreateNode(ip string) *Node {
-	id := utils.Hash(ip) % int(math.Pow(2, float64(m))) // Ensure ID is within [0, 2^m - 1]
+	id := utils.Hash(ip) % int(math.Pow(2, float64(utils.M))) // Ensure ID is within [0, 2^m - 1]
 
 	node := &Node{
 		ID:          id,
 		IP:          ip,
 		Successor:   Pointer{ID: id, IP: ip},
 		Predecessor: Pointer{},
-		FingerTable: make([]Pointer, m),
+		FingerTable: make([]Pointer, utils.M),
 		Lock:        sync.Mutex{},
 	}
 
 	// Initialize finger table with self to prevent nil entries
-	for i := 0; i < m; i++ {
+	for i := 0; i < utils.M; i++ {
 		node.FingerTable[i] = Pointer{ID: node.ID, IP: node.IP}
 	}
 
