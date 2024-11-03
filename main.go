@@ -95,7 +95,7 @@ func main() {
 			fmt.Scan(&fileName)
 			// time.Sleep(5 * time.Second)
 			fmt.Printf("File transfer initiated successfully.\n")
-			fmt.Printf("File Name: %s, Target Node IP: %s\n", fileName, targetNodeID)
+			fmt.Printf("File Name: %s, Target Node IP: %d\n", fileName, targetNodeID)
 			// time.Sleep(5 * time.Second)
 
 			// Call a function to handle the file transfer (implement this function in node package)

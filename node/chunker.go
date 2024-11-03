@@ -95,6 +95,18 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	fmt.Println("Sending the chunks to the receiver folder of the target node ...")
 	n.send(chunks, targetNodeIP)
 	fmt.Println("Send done ...")
+
+	// Cleanup loop to delete each chunk file after transfer
+	for _, chunk := range chunks {
+		chunkFilePath := filepath.Join(dataDir, chunk.ChunkName)
+		err := os.Remove(chunkFilePath)
+		if err != nil {
+			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
+		} else {
+			fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
+		}
+	}
+
 	return chunks
 }
 
