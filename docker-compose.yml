@@ -29,6 +29,8 @@ services:
       - chord_net
     stdin_open: true
     tty: true
+    depends_on:
+      - bootstrap
     deploy:
       replicas: 0  # Start with 0 replicas, scale as needed
 

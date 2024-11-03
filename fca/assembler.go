@@ -17,6 +17,11 @@ import (
 // 4. Chunk location folders already exist and contain the ALL the required chunks
 // 5. The ChunkInfo name does not contain the extension
 
+
+// Workflow
+// 1. Use FindSuccessor to find the node that contains the chunk
+// 2. 
+
 // The type that recipient node will receive after the chunking is done.
 type ChunkInfo struct {
 	ChunkLocations []string
@@ -57,25 +62,28 @@ func Assembler(chunkInfo ChunkInfo) error{
 // Moves all the chunk files from the src to the destination folder.
 func getAllChunks(chunkInfo ChunkInfo) error{
 
-	for _, folder := range chunkInfo.ChunkLocations {
-		files, err := ioutil.ReadDir(filepath.Join(dataDir, folder))
-		if err != nil {
-			return fmt.Errorf("error reading directory %s: %v", folder, err)
-		}
+	// Testing out locally
+	// for _, folder := range chunkInfo.ChunkLocations {
+	// 	files, err := ioutil.ReadDir(filepath.Join(dataDir, folder))
+	// 	if err != nil {
+	// 		return fmt.Errorf("error reading directory %s: %v", folder, err)
+	// 	}
 
-		for _, file := range files {
-			fileName := file.Name()
-			// TODO: Check if the chunk verification part should be improved or not
-			if (strings.Contains(fileName, "chunk")) && (fileName[:len(chunkInfo.Name)] == chunkInfo.Name){
-				srcPath := filepath.Join(filepath.Join(dataDir, folder), fileName)
-				destPath := filepath.Join(assembleFolder, fileName)
+	// 	for _, file := range files {
+	// 		fileName := file.Name()
+	// 		// TODO: Check if the chunk verification part should be improved or not
+	// 		if (strings.Contains(fileName, "chunk")) && (fileName[:len(chunkInfo.Name)] == chunkInfo.Name){
+	// 			srcPath := filepath.Join(filepath.Join(dataDir, folder), fileName)
+	// 			destPath := filepath.Join(assembleFolder, fileName)
 				
-				if err := copyFile(srcPath, destPath); err != nil {
-					return fmt.Errorf("error copying file %s: %v", srcPath, err)
-				}
-			}
-		}
-	}
+	// 			if err := copyFile(srcPath, destPath); err != nil {
+	// 				return fmt.Errorf("error copying file %s: %v", srcPath, err)
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+
 
 	return nil
 }

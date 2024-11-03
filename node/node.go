@@ -25,9 +25,13 @@ type Node struct {
 	Lock        sync.Mutex
 }
 
+type FileTransferRequest struct {
+	SenderIP string
+	FileName string
+}
+
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
-	m            = 5 // Number of rows in the finger table
 )
 
 // Starting the RPC server for the nodes
@@ -54,6 +58,46 @@ func (n *Node) StartRPCServer() {
 		}
 		go rpc.ServeConn(conn)
 	}
+}
+
+func (n *Node) RequestFileTransfer(targetNodeIP, fileName string) error {
+	client, err := rpc.Dial("tcp", targetNodeIP)
+	if err != nil {
+		return fmt.Errorf("failed to connect to target node: %v", err)
+	}
+	defer client.Close()
+
+	var response string
+	request := FileTransferRequest{
+		SenderIP: n.IP,
+		FileName: fileName,
+	}
+
+	err = client.Call("Node.ConfirmFileTransfer", request, &response)
+	if err != nil {
+		return fmt.Errorf("failed to send file transfer request: %v", err)
+	}
+
+	// fmt.Printf("Response from target: %s\n", response)
+	if (request.SenderIP != targetNodeIP) && (response == "es") {
+		fmt.Println("Target accepted the file transfer. Initiating transfer...")
+		// Add file transfer logic here (e.g., sending the file in chunks)
+	} else if (request.SenderIP == targetNodeIP) && (response == "yes") {
+		fmt.Println("Target accepted the file transfer. Initiating transfer...")
+	} else {
+		fmt.Println("Target declined the file transfer.")
+	}
+	return nil
+}
+
+func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) error {
+	fmt.Printf("Received file transfer request from %s for file %s\n", request.SenderIP, request.FileName)
+	var userResponse string
+	fmt.Print("Do you want to receive the file? (yes/no):")
+	fmt.Scanln(&userResponse)
+	// fmt.Printf("User response: %s\n", userResponse)
+	*reply = userResponse
+	return nil
 }
 
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
@@ -89,7 +133,7 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 }
 
 func (n *Node) closestPrecedingNode(id int) Pointer {
-	for i := m - 1; i >= 0; i-- {
+	for i := utils.M - 1; i >= 0; i-- {
 		if utils.Between(n.FingerTable[i].ID, n.ID, id, true) {
 			return n.FingerTable[i]
 		}
@@ -180,9 +224,9 @@ func (n *Node) FixFingers() {
 	for {
 		time.Sleep((timeInterval + 2) * time.Second)
 
-		for next := 0; next < m; next++ {
+		for next := 0; next < utils.M; next++ {
 			// Safely calculate the start of finger interval
-			start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(m)))
+			start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(utils.M)))
 
 			fmt.Printf("[NODE-%d] Fixing finger for key %d \n", n.ID, start)
 			// Find and update successor for this finger
@@ -192,7 +236,7 @@ func (n *Node) FixFingers() {
 			fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
 
 			if err != nil {
-				fmt.Printf("[NODE-%d] Failed to find successor: %v\n", n.ID, err)
+				fmt.Printf("", n.ID, err)
 				continue
 			}
 
@@ -226,7 +270,7 @@ func CreateNode(ip string) *Node {
 		IP:          ip,
 		Successor:   Pointer{ID: id, IP: ip},
 		Predecessor: Pointer{},
-		FingerTable: make([]Pointer, m),
+		FingerTable: make([]Pointer, utils.M),
 		Lock:        sync.Mutex{},
 	}
 

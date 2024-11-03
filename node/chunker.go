@@ -1,4 +1,4 @@
-package fca
+package node
 
 // import (
 // 	"distributed-chord/chord/node"
@@ -65,7 +65,6 @@ package fca
 // 	}
 
 // 	// var nodes []*node.Node
-	
 
 // 	buffer := make([]byte, chunkSize)
 // 	chunkNumber := 1

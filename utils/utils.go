@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	m = 5 // number of bits to consider for the final hash value
+	M = 5 // number of bits to consider for the final hash value
 )
 
 // Add hash function here
@@ -19,9 +19,9 @@ func Hash(s string) int {
 	hashBytes := h.Sum(nil)
 
 	unModdedID := binary.BigEndian.Uint64(hashBytes[:8]) // Gets the first 8 bytes of the hash
-	moddedID := unModdedID % (1 << m)                    // Mod the ID by 2^m
+	moddedID := unModdedID % (1 << M)                    // Mod the ID by 2^m
 
-	return int(moddedID) % m
+	return int(moddedID)
 }
 
 func GetContainerIP() (string, error) {

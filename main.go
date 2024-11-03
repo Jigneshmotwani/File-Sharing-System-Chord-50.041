@@ -74,7 +74,15 @@ func main() {
 
 		switch choice {
 		case 1:
-			fmt.Println("Finger Table:", n.FingerTable)
+			fmt.Println("Finger Table:")
+			for i, entry := range n.FingerTable {
+				// fmt.Printf("Finger table entry %d: Node %d (%s)\n", i+1, entry)
+				if entry.ID != 0 {
+					fmt.Printf("- Finger table entry %d: Node %d (%s)\n", i+1, entry.ID, entry.IP)
+				} else {
+					fmt.Printf("- Finger table entry %d: No node assigned\n", i+1)
+				}
+			}
 		case 2:
 			fmt.Printf("Successor: %v, Predecessor: %v\n", n.Successor, n.Predecessor)
 		case 3:
@@ -90,10 +98,10 @@ func main() {
 			// time.Sleep(5 * time.Second)
 
 			// Call a function to handle the file transfer (implement this function in node package)
-			// err := n.TransferFile(targetNodeIP, fileName)
-			// if err != nil {
-			// 	fmt.Printf("File transfer failed: %v\n", err)
-			// } else {
+			err := n.RequestFileTransfer(targetNodeIP, fileName)
+			if err != nil {
+				fmt.Printf("File transfer failed: %v\n", err)
+			}
 			// 	fmt.Println("File transfer initiated successfully.")
 			// }
 		case 4:
@@ -167,67 +175,3 @@ func main() {
 	// 	}
 	// }()
 }
-
-// var n *node.Node
-
-// func main() {
-// 	joinAddr := os.Getenv("BOOTSTRAP_ADDR")
-// 	log.Printf("Join address: %s", joinAddr)
-// 	ip, err := GetContainerIP()
-
-// 	if err != nil {
-// 		log.Fatalf("Failed to get container IP: %v", err)
-// 	}
-
-// 	log.Printf("Node starting at %s", ip)
-
-// 	n = node.NewNode(ip)
-
-// 	log.Printf("Node %d created", n.ID)
-
-// 	if joinAddr != "" {
-// 		for i := 0; i < 5; i++ {
-// 			// err := attemptJoin(joinAddr)
-// 			if err == nil {
-// 				log.Printf("Node %d joined the network via %s", n.ID, joinAddr)
-// 				break
-// 			}
-// 			log.Printf("Retrying join after failure: %v", err)
-// 			time.Sleep(time.Duration(i+1) * time.Second) // Exponential backoff
-// 		}
-// 	} else {
-// 		n.Join(nil)
-// 	}
-
-// 	go n.Stabilize()
-// 	go n.FixFingers()
-// 	go n.CheckPredecessor()
-
-// 	log.Printf("Node %d started", n.ID)
-
-// 	log.Printf("Node %d starting HTTP server at %s", n.ID, ip)
-// 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:8080", ip), nil))
-// }
-
-// func GetContainerIP() (string, error) {
-// 	// Getting IP address of the container from eth0 interface
-// 	iface, err := net.InterfaceByName("eth0")
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to get eth0 interface: %v", err)
-// 	}
-
-// 	addrs, err := iface.Addrs()
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to get addresses for eth0: %v", err)
-// 	}
-
-// 	for _, addr := range addrs {
-// 		if ipnet, ok := addr.(*net.IPNet); ok {
-// 			if ipv4 := ipnet.IP.To4(); ipv4 != nil {
-// 				return ipv4.String(), nil
-// 			}
-// 		}
-// 	}
-
-// 	return "", fmt.Errorf("no IPv4 address found for eth0")
-// }
