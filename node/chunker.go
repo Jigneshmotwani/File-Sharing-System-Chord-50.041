@@ -1,221 +1,225 @@
 package node
 
-// import (
-// 	"distributed-chord/chord/node"
-// 	"fmt"
-// 	"io"
-// 	"os"
-// 	"path/filepath"
-// 	"strings"
-// )
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
 
-// func Chunker() *ChunkInfo {
-// 	// Paths
-// 	dataDir := "./data" // Change if needed
-// 	const chunkSize = 1024
-// 	var sourceFolder, sourceFile, absPath string
+type ChunkInfo struct {
+	ChunkLocations []string
+	Name           string // name of the original file
+}
 
-// 	// Initialize the ChunkInfo struct
-// 	chunkInfo := &ChunkInfo{
-// 		ChunkLocations: []string{},
-// 		Name:           "",
-// 	}
+func (n *Node) Chunker() *ChunkInfo {
+	// Paths
+	dataDir := "./usr/src/app/local" // Change if needed
+	const chunkSize = 1024
+	var sourceFolder, sourceFile, absPath string
 
-// 	// Loop to allow user to switch nodes or select a file
-// 	for {
-// 		// Select source node folder
-// 		sourceFolder = promptUserForFolder(dataDir)
-// 		if sourceFolder == "" {
-// 			fmt.Println("No valid folder selected.")
-// 			return nil
-// 		}
+	// Initialize the ChunkInfo struct
+	chunkInfo := &ChunkInfo{
+		ChunkLocations: []string{},
+		Name:           "",
+	}
 
-// 		sourceFile, absPath = promptUserForFile(dataDir, sourceFolder)
-// 		if sourceFile == "-1" { // If user enters -1, switch the node
-// 			continue
-// 		}
-// 		if sourceFile == "" {
-// 			fmt.Println("No valid file selected.")
-// 			return nil
-// 		}
+	// Loop to allow user to switch nodes or select a file
+	for {
+		// Select source node folder
+		sourceFolder = promptUserForFolder(dataDir)
+		if sourceFolder == "" {
+			fmt.Println("No valid folder selected.")
+			return nil
+		}
 
-// 		// Set the original file name in the ChunkInfo struct
-// 		chunkInfo.Name = filepath.Base(sourceFile)
-// 		break // Exit the loop after a valid file is selected
-// 	}
+		sourceFile, absPath = promptUserForFile(dataDir, sourceFolder)
+		// if sourceFile == "-1" { // If user enters -1, switch the node
+		// 	continue
+		// }
+		if sourceFile == "" {
+			fmt.Println("No valid file selected.")
+			return nil
+		}
 
-// 	// Open the source file
-// 	file, err := os.Open(sourceFile)
-// 	if err != nil {
-// 		fmt.Println("Error opening file:", err)
-// 		return nil
-// 	}
-// 	defer file.Close()
+		// Set the original file name in the ChunkInfo struct
+		chunkInfo.Name = filepath.Base(sourceFile)
+		break // Exit the loop after a valid file is selected
+	}
 
-// 	// Get all the node folders and assign finger tables
-// 	nodeFolders, err := getNodeFolders(dataDir, sourceFolder)
-// 	if err != nil {
-// 		fmt.Println("Error retrieving folders:", err)
-// 		return nil
-// 	}
+	// Open the source file
+	file, err := os.Open(sourceFile)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return nil
+	}
+	defer file.Close()
 
-// 	if len(nodeFolders) == 0 {
-// 		fmt.Println("No other folders found for distributing chunks.")
-// 		return nil
-// 	}
+	// Get all the node folders and assign finger tables
+	nodeFolders, err := getNodeFolders(dataDir, sourceFolder)
+	if err != nil {
+		fmt.Println("Error retrieving folders:", err)
+		return nil
+	}
 
-// 	// var nodes []*node.Node
+	if len(nodeFolders) == 0 {
+		fmt.Println("No other folders found for distributing chunks.")
+		return nil
+	}
 
-// 	buffer := make([]byte, chunkSize)
-// 	chunkNumber := 1
+	// var nodes []*node.Node
 
-// 	// Replace special characters in the absolute path to make it valid as a file name
-// 	absPathForFileName := sanitizeFileName(absPath)
+	buffer := make([]byte, chunkSize)
+	chunkNumber := 1
 
-// 	// Remove the file extension from the absolute path
-// 	absPathWithoutExtension := removeFileExtension(absPathForFileName)
+	// Replace special characters in the absolute path to make it valid as a file name
+	absPathForFileName := sanitizeFileName(absPath)
 
-// 	for {
-// 		bytesRead, err := file.Read(buffer)
-// 		if err != nil && err != io.EOF {
-// 			fmt.Println("Error reading file:", err)
-// 			return nil
-// 		}
-// 		if bytesRead == 0 {
-// 			break
-// 		}
+	// Remove the file extension from the absolute path
+	absPathWithoutExtension := removeFileExtension(absPathForFileName)
 
-// 		// Create the chunk file name by appending the chunk number at the end of the sanitized path without extension
-// 		chunkFileName := fmt.Sprintf("%s-chunk%d.txt", absPathWithoutExtension, chunkNumber)
+	for {
+		bytesRead, err := file.Read(buffer)
+		if err != nil && err != io.EOF {
+			fmt.Println("Error reading file:", err)
+			return nil
+		}
+		if bytesRead == 0 {
+			break
+		}
 
-// 		// Hash the chunk file name using SHA-1 and convert it to a big integer
-// 		// hashedChunkFileName := node.hashSHA1(chunkFileName)
-// 		// hashedChunkBigInt := node.hashToBigInt(hashedChunkFileName)
-// 		hashedChunkBigInt := node.SHA1Hash(chunkFileName)
+		// Create the chunk file name by appending the chunk number at the end of the sanitized path without extension
+		chunkFileName := fmt.Sprintf("%s-chunk%d.txt", absPathWithoutExtension, chunkNumber)
 
-// 		// Find the appropriate node based on the chunk's big integer value
-// 		// assignedNode := node.FindSuccessor(hashedChunkBigInt)
-// 		assignedNode := node.FindSuccessor()
+		// Hash the chunk file name using SHA-1 and convert it to a big integer
+		// hashedChunkFileName := node.hashSHA1(chunkFileName)
+		// hashedChunkBigInt := node.hashToBigInt(hashedChunkFileName)
+		hashedChunkBigInt := node.SHA1Hash(chunkFileName)
 
-// 		if assignedNode != nil {
-// 			// Save the chunk in the assigned node's folder
-// 			destinationFolder := filepath.Join("", assignedNode.FolderName)
-// 			chunkPath := filepath.Join(destinationFolder, chunkFileName)
-// 			err = writeChunk(chunkPath, buffer[:bytesRead])
-// 			if err != nil {
-// 				fmt.Println("Error writing chunk:", err)
-// 				return nil
-// 			}
-// 			fmt.Printf("Chunk %d assigned to node: %s\n", chunkNumber, assignedNode.FolderName)
+		// Find the appropriate node based on the chunk's big integer value
+		// assignedNode := node.FindSuccessor(hashedChunkBigInt)
+		assignedNode := node.FindSuccessor()
 
-// 			// Append the chunk's location info to the ChunkLocations field in chunkInfo
-// 			chunkInfo.ChunkLocations = append(chunkInfo.ChunkLocations, assignedNode.FolderName)
-// 		} else {
-// 			fmt.Println("No node found for chunk:", chunkFileName)
-// 		}
+		if assignedNode != nil {
+			// Save the chunk in the assigned node's folder
+			destinationFolder := filepath.Join("", assignedNode.FolderName)
+			chunkPath := filepath.Join(destinationFolder, chunkFileName)
+			err = writeChunk(chunkPath, buffer[:bytesRead])
+			if err != nil {
+				fmt.Println("Error writing chunk:", err)
+				return nil
+			}
+			fmt.Printf("Chunk %d assigned to node: %s\n", chunkNumber, assignedNode.FolderName)
 
-// 		chunkNumber++
-// 	}
+			// Append the chunk's location info to the ChunkLocations field in chunkInfo
+			chunkInfo.ChunkLocations = append(chunkInfo.ChunkLocations, assignedNode.FolderName)
+		} else {
+			fmt.Println("No node found for chunk:", chunkFileName)
+		}
 
-// 	return chunkInfo
-// }
+		chunkNumber++
+	}
 
-// func sanitizeFileName(path string) string {
-// 	replacer := strings.NewReplacer("\\", "_", ":", "_")
-// 	return replacer.Replace(path)
-// }
+	return chunkInfo
+}
 
-// func removeFileExtension(path string) string {
-// 	ext := filepath.Ext(path)
-// 	return strings.TrimSuffix(path, ext)
-// }
+func sanitizeFileName(path string) string {
+	replacer := strings.NewReplacer("\\", "_", ":", "_")
+	return replacer.Replace(path)
+}
 
-// func promptUserForFolder(dataDir string) string {
-// 	folders, err := getNodeFolders(dataDir, "")
-// 	if err != nil {
-// 		fmt.Println("Error retrieving folders:", err)
-// 		return ""
-// 	}
+func removeFileExtension(path string) string {
+	ext := filepath.Ext(path)
+	return strings.TrimSuffix(path, ext)
+}
 
-// 	for {
-// 		fmt.Println("Select the source node folder:")
-// 		for i, folder := range folders {
-// 			fmt.Printf("[%d] %s\n", i+1, filepath.Base(folder))
-// 		}
-// 		fmt.Println("[0] Create a new node")
+func promptUserForFolder(dataDir string) string {
+	folders, err := getNodeFolders(dataDir, "")
+	if err != nil {
+		fmt.Println("Error retrieving folders:", err)
+		return ""
+	}
 
-// 		var choice int
-// 		fmt.Print("Enter your choice: ")
-// 		fmt.Scan(&choice)
+	for {
+		fmt.Println("Select the source node folder:")
+		for i, folder := range folders {
+			fmt.Printf("[%d] %s\n", i+1, filepath.Base(folder))
+		}
+		fmt.Println("[0] Create a new node")
 
-// 		if choice == 0 {
-// 			// Option to create a new node
-// 			var newNodeName string
-// 			fmt.Print("Enter the name of the new node: ")
-// 			fmt.Scan(&newNodeName)
+		var choice int
+		fmt.Print("Enter your choice: ")
+		fmt.Scan(&choice)
 
-// 			// Construct the new node path
-// 			newNodePath := filepath.Join(dataDir, newNodeName)
+		if choice == 0 {
+			// Option to create a new node
+			var newNodeName string
+			fmt.Print("Enter the name of the new node: ")
+			fmt.Scan(&newNodeName)
 
-// 			// Create the new directory for the node
-// 			err := os.Mkdir(newNodePath, os.ModePerm)
-// 			if err != nil {
-// 				fmt.Println("Error creating new node folder:", err)
-// 				continue
-// 			}
+			// Construct the new node path
+			newNodePath := filepath.Join(dataDir, newNodeName)
 
-// 			fmt.Printf("New node '%s' created successfully.\n", newNodeName)
-// 			fmt.Printf("Current node is '%s'\n", newNodeName)
-// 			return newNodeName
-// 		} else if choice >= 1 && choice <= len(folders) {
-// 			return filepath.Base(folders[choice-1])
-// 		}
+			// Create the new directory for the node
+			err := os.Mkdir(newNodePath, os.ModePerm)
+			if err != nil {
+				fmt.Println("Error creating new node folder:", err)
+				continue
+			}
 
-// 		fmt.Println("Invalid choice. Please select a valid node.")
-// 	}
-// }
+			fmt.Printf("New node '%s' created successfully.\n", newNodeName)
+			fmt.Printf("Current node is '%s'\n", newNodeName)
+			return newNodeName
+		} else if choice >= 1 && choice <= len(folders) {
+			return filepath.Base(folders[choice-1])
+		}
 
-// func promptUserForFile(dataDir, folder string) (string, string) {
-// 	for {
-// 		var fileName string
-// 		fmt.Print("Enter the file name (with extension) to share (or enter -1 to switch node): ")
-// 		fmt.Scan(&fileName)
+		fmt.Println("Invalid choice. Please select a valid node.")
+	}
+}
 
-// 		if fileName == "-1" {
-// 			return "-1", ""
-// 		}
-// 		filePath := filepath.Join(dataDir, folder, fileName)
-// 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-// 			fmt.Println("Invalid file name. Please try again.")
-// 		} else {
-// 			absPath, _ := filepath.Abs(filePath)
-// 			return filePath, absPath
-// 		}
-// 	}
-// }
+func promptUserForFile(dataDir, folder string) (string, string) {
+	for {
+		var fileName string
+		fmt.Print("Enter the file name (with extension) to share (or enter -1 to switch node): ")
+		fmt.Scan(&fileName)
 
-// // Function to get all node folders in the data directory
-// func getNodeFolders(dataDir, sourceFolder string) ([]string, error) {
-// 	var nodeFolders []string
+		if fileName == "-1" {
+			return "-1", ""
+		}
+		filePath := filepath.Join(dataDir, folder, fileName)
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			fmt.Println("Invalid file name. Please try again.")
+		} else {
+			absPath, _ := filepath.Abs(filePath)
+			return filePath, absPath
+		}
+	}
+}
 
-// 	// Read the entries in the dataDir folder
-// 	entries, err := os.ReadDir(dataDir)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+// Function to get all node folders in the data directory
+func getNodeFolders(dataDir, sourceFolder string) ([]string, error) {
+	var nodeFolders []string
 
-// 	// Loop through the entries and append only directories
-// 	for _, entry := range entries {
-// 		if entry.IsDir() {
-// 			nodeFolders = append(nodeFolders, filepath.Join(dataDir, entry.Name()))
-// 		}
-// 	}
+	// Read the entries in the dataDir folder
+	entries, err := os.ReadDir(dataDir)
+	if err != nil {
+		return nil, err
+	}
 
-// 	return nodeFolders, nil
-// }
+	// Loop through the entries and append only directories
+	for _, entry := range entries {
+		if entry.IsDir() {
+			nodeFolders = append(nodeFolders, filepath.Join(dataDir, entry.Name()))
+		}
+	}
 
-// // write chunk data to a file
-// func writeChunk(filePath string, data []byte) error {
-// 	fmt.Printf("Writing chunk to file: %s\n", filePath)
-// 	return os.WriteFile(filePath, data, 0644)
-// }
+	return nodeFolders, nil
+}
+
+// write chunk data to a file
+func writeChunk(filePath string, data []byte) error {
+	fmt.Printf("Writing chunk to file: %s\n", filePath)
+	return os.WriteFile(filePath, data, 0644)
+}

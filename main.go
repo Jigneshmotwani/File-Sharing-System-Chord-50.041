@@ -86,19 +86,21 @@ func main() {
 		case 2:
 			fmt.Printf("Successor: %v, Predecessor: %v\n", n.Successor, n.Predecessor)
 		case 3:
-			var targetNodeIP, fileName string
-			fmt.Print("Enter the IP address of the target node: ")
-			fmt.Scan(&targetNodeIP)
+			var targetNodeID int
+			var fileName string
+			fmt.Print("Enter Target Node ID: ")
+			fmt.Scan(&targetNodeID)
 			// time.Sleep(5 * time.Second)
 			fmt.Print("Enter the file name to transfer: ")
 			fmt.Scan(&fileName)
 			// time.Sleep(5 * time.Second)
 			fmt.Printf("File transfer initiated successfully.\n")
-			fmt.Printf("File Name: %s, Target Node IP: %s\n", fileName, targetNodeIP)
+			fmt.Printf("File Name: %s, Target Node IP: %s\n", fileName, targetNodeID)
 			// time.Sleep(5 * time.Second)
 
 			// Call a function to handle the file transfer (implement this function in node package)
-			err := n.RequestFileTransfer(targetNodeIP, fileName)
+			err := n.RequestFileTransfer(targetNodeID, fileName)
+
 			if err != nil {
 				fmt.Printf("File transfer failed: %v\n", err)
 			}

@@ -60,7 +60,17 @@ func (n *Node) StartRPCServer() {
 	}
 }
 
-func (n *Node) RequestFileTransfer(targetNodeIP, fileName string) error {
+func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
+	// Finding target node IP from ID
+	message := Message{ID: targetNodeID}
+	var reply Message
+	err := n.FindSuccessor(message, &reply)
+	if err != nil {
+		return fmt.Errorf("failed to find successor: %v", err)
+	}
+	targetNodeIP := reply.IP
+	fmt.Printf("Target node IP: %s\n", targetNodeIP)
+
 	client, err := rpc.Dial("tcp", targetNodeIP)
 	if err != nil {
 		return fmt.Errorf("failed to connect to target node: %v", err)
@@ -73,6 +83,11 @@ func (n *Node) RequestFileTransfer(targetNodeIP, fileName string) error {
 		FileName: fileName,
 	}
 
+	if request.SenderIP == targetNodeIP {
+		fmt.Println("Cannot send file to the same node.")
+		return nil
+	}
+
 	err = client.Call("Node.ConfirmFileTransfer", request, &response)
 	if err != nil {
 		return fmt.Errorf("failed to send file transfer request: %v", err)
@@ -82,8 +97,7 @@ func (n *Node) RequestFileTransfer(targetNodeIP, fileName string) error {
 	if (request.SenderIP != targetNodeIP) && (response == "es") {
 		fmt.Println("Target accepted the file transfer. Initiating transfer...")
 		// Add file transfer logic here (e.g., sending the file in chunks)
-	} else if (request.SenderIP == targetNodeIP) && (response == "yes") {
-		fmt.Println("Target accepted the file transfer. Initiating transfer...")
+		n.Chunker()
 	} else {
 		fmt.Println("Target declined the file transfer.")
 	}
@@ -101,13 +115,13 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 }
 
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
-	fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
+	// fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
 	if utils.Between(message.ID, n.ID, n.Successor.ID, true) {
 		*reply = Message{
 			ID: n.Successor.ID,
 			IP: n.Successor.IP,
 		}
-		fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
+		// fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
 		return nil
 	} else {
 		closest := n.closestPrecedingNode(message.ID)
@@ -116,18 +130,18 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 				ID: n.ID,
 				IP: n.IP,
 			}
-			fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
+			// fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
 			return nil
 		}
 		newReply, err := CallRPCMethod(closest.IP, "Node.FindSuccessor", message)
 		if err != nil {
-			return fmt.Errorf("[NODE-%d] Failed to call FindSuccessor: %v\n", n.ID, err)
+			// return fmt.Errorf("[NODE-%d] Failed to call FindSuccessor: %v\n", n.ID, err)
 		}
 		*reply = Message{
 			ID: newReply.ID,
 			IP: newReply.IP,
 		}
-		fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
+		// fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
 		return nil
 	}
 }
@@ -156,7 +170,7 @@ func (n *Node) Join(joinIP string) {
 		log.Fatalf("[NODE-%d] Failed to join network: %v", n.ID, err)
 	}
 
-	fmt.Printf("[NODE-%d] Joining network with successor: %v\n", n.ID, reply.ID)
+	// fmt.Printf("[NODE-%d] Joining network with successor: %v\n", n.ID, reply.ID)
 	n.Predecessor = Pointer{}
 	n.Successor = Pointer{ID: reply.ID, IP: reply.IP}
 
@@ -176,10 +190,10 @@ func (n *Node) Join(joinIP string) {
 func (n *Node) Stabilize() {
 	for {
 		time.Sleep(timeInterval * time.Second)
-		fmt.Printf("[NODE-%d] Stabilizing...\n", n.ID)
+		// fmt.Printf("[NODE-%d] Stabilizing...\n", n.ID)
 		reply, err := CallRPCMethod(n.Successor.IP, "Node.GetPredecessor", Message{})
 		if err != nil {
-			fmt.Printf("[NODE-%d] Failed to get predecessor: %v\n", n.ID, err)
+			// fmt.Printf("[NODE-%d] Failed to get predecessor: %v\n", n.ID, err)
 			continue
 		}
 
@@ -197,7 +211,7 @@ func (n *Node) Stabilize() {
 		_, err = CallRPCMethod(n.Successor.IP, "Node.Notify", message)
 
 		if err != nil {
-			fmt.Printf("[NODE-%d] Failed to notify successor: %v\n", n.ID, err)
+			// fmt.Printf("[NODE-%d] Failed to notify successor: %v\n", n.ID, err)
 		}
 	}
 }
@@ -211,10 +225,10 @@ func (n *Node) GetPredecessor(message Message, reply *Message) error {
 }
 
 func (n *Node) Notify(message Message, reply *Message) error {
-	fmt.Printf("[NODE-%d] Getting notified by node %d...\n", n.ID, message.ID)
+	// fmt.Printf("[NODE-%d] Getting notified by node %d...\n", n.ID, message.ID)
 	if (n.Predecessor == Pointer{} || utils.Between(message.ID, n.Predecessor.ID, n.ID, false)) {
 		n.Predecessor = Pointer{ID: message.ID, IP: message.IP}
-		fmt.Printf("[NODE-%d] Predecessor updated to %d\n", n.ID, n.Predecessor.ID)
+		// fmt.Printf("[NODE-%d] Predecessor updated to %d\n", n.ID, n.Predecessor.ID)
 	}
 	return nil
 }
@@ -228,12 +242,12 @@ func (n *Node) FixFingers() {
 			// Safely calculate the start of finger interval
 			start := (n.ID + int(math.Pow(2, float64(next)))) % int(math.Pow(2, float64(utils.M)))
 
-			fmt.Printf("[NODE-%d] Fixing finger for key %d \n", n.ID, start)
+			// fmt.Printf("[NODE-%d] Fixing finger for key %d \n", n.ID, start)
 			// Find and update successor for this finger
 			message := Message{ID: start}
 			var reply Message
 			err := n.FindSuccessor(message, &reply)
-			fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
+			// fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
 
 			if err != nil {
 				fmt.Printf("", n.ID, err)
