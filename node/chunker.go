@@ -1,83 +1,65 @@
 package node
 
 import (
+	"distributed-chord/utils"
 	"fmt"
 	"io"
+	"net/rpc"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 type ChunkInfo struct {
-	ChunkLocations []string
-	Name           string // name of the original file
+	Key       int
+	ChunkName string
 }
 
-func (n *Node) Chunker() *ChunkInfo {
+// ChunkTransferRequest represents the data needed to transfer a chunk to another node
+type ChunkTransferRequest struct {
+	ChunkName string
+	Data      []byte
+}
+
+type ReceiveChunkInfoRequest struct {
+	Chunks []ChunkInfo
+}
+
+// file-chunk1-<node_id>.txt
+// if dup: file-chunk1-<node_id>-1.txt and so on
+
+func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	// Paths
-	dataDir := "./usr/src/app/local" // Change if needed
+	dataDir := "/local" // Change if needed
 	const chunkSize = 1024
-	var sourceFolder, sourceFile, absPath string
+	var chunks []ChunkInfo
 
-	// Initialize the ChunkInfo struct
-	chunkInfo := &ChunkInfo{
-		ChunkLocations: []string{},
-		Name:           "",
-	}
-
-	// Loop to allow user to switch nodes or select a file
-	for {
-		// Select source node folder
-		sourceFolder = promptUserForFolder(dataDir)
-		if sourceFolder == "" {
-			fmt.Println("No valid folder selected.")
-			return nil
-		}
-
-		sourceFile, absPath = promptUserForFile(dataDir, sourceFolder)
-		// if sourceFile == "-1" { // If user enters -1, switch the node
-		// 	continue
-		// }
-		if sourceFile == "" {
-			fmt.Println("No valid file selected.")
-			return nil
-		}
-
-		// Set the original file name in the ChunkInfo struct
-		chunkInfo.Name = filepath.Base(sourceFile)
-		break // Exit the loop after a valid file is selected
+	// checking if the file exists in the loacl file path of the docker container
+	filePath := filepath.Join(dataDir, fileName)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		fmt.Printf("File %s does not exist in directory %s\n", fileName, dataDir)
+		return nil
+	} else if err != nil {
+		fmt.Printf("Error checking file existence: %v\n", err)
+		return nil
 	}
 
 	// Open the source file
-	file, err := os.Open(sourceFile)
+	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return nil
 	}
 	defer file.Close()
 
-	// Get all the node folders and assign finger tables
-	nodeFolders, err := getNodeFolders(dataDir, sourceFolder)
-	if err != nil {
-		fmt.Println("Error retrieving folders:", err)
-		return nil
-	}
+	ext := filepath.Ext(fileName)
+	baseName := strings.TrimSuffix(fileName, ext)
 
-	if len(nodeFolders) == 0 {
-		fmt.Println("No other folders found for distributing chunks.")
-		return nil
-	}
-
-	// var nodes []*node.Node
+	// fmt.Println("All Perfect till here")
+	// fmt.Println("Ami tumala bhalubhashi")
 
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
-
-	// Replace special characters in the absolute path to make it valid as a file name
-	absPathForFileName := sanitizeFileName(absPath)
-
-	// Remove the file extension from the absolute path
-	absPathWithoutExtension := removeFileExtension(absPathForFileName)
 
 	for {
 		bytesRead, err := file.Read(buffer)
@@ -90,136 +72,117 @@ func (n *Node) Chunker() *ChunkInfo {
 		}
 
 		// Create the chunk file name by appending the chunk number at the end of the sanitized path without extension
-		chunkFileName := fmt.Sprintf("%s-chunk%d.txt", absPathWithoutExtension, chunkNumber)
-
-		// Hash the chunk file name using SHA-1 and convert it to a big integer
-		// hashedChunkFileName := node.hashSHA1(chunkFileName)
-		// hashedChunkBigInt := node.hashToBigInt(hashedChunkFileName)
-		hashedChunkBigInt := node.SHA1Hash(chunkFileName)
-
-		// Find the appropriate node based on the chunk's big integer value
-		// assignedNode := node.FindSuccessor(hashedChunkBigInt)
-		assignedNode := node.FindSuccessor()
-
-		if assignedNode != nil {
-			// Save the chunk in the assigned node's folder
-			destinationFolder := filepath.Join("", assignedNode.FolderName)
-			chunkPath := filepath.Join(destinationFolder, chunkFileName)
-			err = writeChunk(chunkPath, buffer[:bytesRead])
-			if err != nil {
-				fmt.Println("Error writing chunk:", err)
-				return nil
-			}
-			fmt.Printf("Chunk %d assigned to node: %s\n", chunkNumber, assignedNode.FolderName)
-
-			// Append the chunk's location info to the ChunkLocations field in chunkInfo
-			chunkInfo.ChunkLocations = append(chunkInfo.ChunkLocations, assignedNode.FolderName)
-		} else {
-			fmt.Println("No node found for chunk:", chunkFileName)
+		chunkFileName := fmt.Sprintf("%s-chunk-%d-%d%s", baseName, chunkNumber, n.ID, ext)
+		chunkFilePath := filepath.Join(dataDir, chunkFileName)
+		err = os.WriteFile(chunkFilePath, buffer[:bytesRead], 0644)
+		if err != nil {
+			fmt.Printf("Error writing chunk file %s: %v\n", chunkFileName, err)
+			return nil
 		}
 
+		fmt.Printf("Chunk %d written: %s\n", chunkNumber, chunkFilePath)
+		// hashedKey := hashChunkName(chunkFileName)
+		hashedKey := utils.Hash(chunkFileName)
+		chunks = append(chunks, ChunkInfo{
+			Key:       hashedKey,
+			ChunkName: chunkFileName,
+		})
+
+		fmt.Println("Chunks: %s", chunks)
 		chunkNumber++
 	}
 
-	return chunkInfo
+	fmt.Println("Sending the chunks to the receiver folder of the target node ...")
+	n.send(chunks, targetNodeIP)
+	fmt.Println("Send done ...")
+	return chunks
 }
 
-func sanitizeFileName(path string) string {
-	replacer := strings.NewReplacer("\\", "_", ":", "_")
-	return replacer.Replace(path)
-}
+// ReceiveChunk handles receiving a chunk and saving it to the shared directory
+func (n *Node) ReceiveChunk(request ChunkTransferRequest, reply *string) error {
+	destinationPath := filepath.Join("/shared", request.ChunkName)
 
-func removeFileExtension(path string) string {
-	ext := filepath.Ext(path)
-	return strings.TrimSuffix(path, ext)
-}
-
-func promptUserForFolder(dataDir string) string {
-	folders, err := getNodeFolders(dataDir, "")
+	// Write the chunk data to the shared directory
+	err := os.WriteFile(destinationPath, request.Data, 0644)
 	if err != nil {
-		fmt.Println("Error retrieving folders:", err)
-		return ""
+		return fmt.Errorf("failed to write chunk to %s: %v", destinationPath, err)
 	}
 
-	for {
-		fmt.Println("Select the source node folder:")
-		for i, folder := range folders {
-			fmt.Printf("[%d] %s\n", i+1, filepath.Base(folder))
-		}
-		fmt.Println("[0] Create a new node")
-
-		var choice int
-		fmt.Print("Enter your choice: ")
-		fmt.Scan(&choice)
-
-		if choice == 0 {
-			// Option to create a new node
-			var newNodeName string
-			fmt.Print("Enter the name of the new node: ")
-			fmt.Scan(&newNodeName)
-
-			// Construct the new node path
-			newNodePath := filepath.Join(dataDir, newNodeName)
-
-			// Create the new directory for the node
-			err := os.Mkdir(newNodePath, os.ModePerm)
-			if err != nil {
-				fmt.Println("Error creating new node folder:", err)
-				continue
-			}
-
-			fmt.Printf("New node '%s' created successfully.\n", newNodeName)
-			fmt.Printf("Current node is '%s'\n", newNodeName)
-			return newNodeName
-		} else if choice >= 1 && choice <= len(folders) {
-			return filepath.Base(folders[choice-1])
-		}
-
-		fmt.Println("Invalid choice. Please select a valid node.")
-	}
+	*reply = "Chunk received successfully"
+	return nil
 }
 
-func promptUserForFile(dataDir, folder string) (string, string) {
-	for {
-		var fileName string
-		fmt.Print("Enter the file name (with extension) to share (or enter -1 to switch node): ")
-		fmt.Scan(&fileName)
-
-		if fileName == "-1" {
-			return "-1", ""
-		}
-		filePath := filepath.Join(dataDir, folder, fileName)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			fmt.Println("Invalid file name. Please try again.")
-		} else {
-			absPath, _ := filepath.Abs(filePath)
-			return filePath, absPath
-		}
-	}
+func (n *Node) ReceiveChunkInfo(request ReceiveChunkInfoRequest, reply *string) error {
+	fmt.Printf("Received chunk info: %+v\n", request.Chunks)
+	*reply = "Chunk info received successfully"
+	return nil
 }
 
-// Function to get all node folders in the data directory
-func getNodeFolders(dataDir, sourceFolder string) ([]string, error) {
-	var nodeFolders []string
+func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
+	for _, chunk := range chunks {
+		var key = chunk.Key
+		var chunkName = chunk.ChunkName
 
-	// Read the entries in the dataDir folder
-	entries, err := os.ReadDir(dataDir)
+		message := Message{ID: key}
+		var reply Message
+		err := n.FindSuccessor(message, &reply)
+		if err != nil {
+			fmt.Printf("Failed to find successor: %v\n", err)
+			continue
+		}
+		sendToNodeIP := reply.IP
+		fmt.Printf("Sending chunk %s to node IP: %s\n", chunkName, sendToNodeIP)
+
+		// Read the chunk data from the local directory
+		chunkPath := filepath.Join("/local", chunkName)
+		data, err := os.ReadFile(chunkPath)
+		if err != nil {
+			fmt.Printf("Failed to read chunk %s: %v\n", chunkName, err)
+			continue
+		}
+
+		// Establish RPC connection to the target node
+		client, err := rpc.Dial("tcp", sendToNodeIP)
+		if err != nil {
+			fmt.Printf("Failed to connect to node %s: %v\n", sendToNodeIP, err)
+			continue
+		}
+		defer client.Close()
+
+		// Create the chunk transfer request
+		request := ChunkTransferRequest{
+			ChunkName: chunkName,
+			Data:      data,
+		}
+		var response string
+
+		// Call the ReceiveChunk method on the target node
+		err = client.Call("Node.ReceiveChunk", request, &response)
+		if err != nil {
+			fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, sendToNodeIP, err)
+			continue
+		}
+
+		fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, sendToNodeIP)
+	}
+
+	client, err := rpc.Dial("tcp", targetNodeIP)
 	if err != nil {
-		return nil, err
+		fmt.Printf("Failed to connect to target node %s to send chunk info: %v\n", targetNodeIP, err)
+		return
+	}
+	defer client.Close()
+
+	// Create the chunk info transfer request
+	chunkInfoRequest := ReceiveChunkInfoRequest{Chunks: chunks}
+	var response string
+
+	// Call the ReceiveChunkInfo method on the target node
+	err = client.Call("Node.ReceiveChunkInfo", chunkInfoRequest, &response)
+	if err != nil {
+		fmt.Printf("Failed to send chunk info to node %s: %v\n", targetNodeIP, err)
+		return
 	}
 
-	// Loop through the entries and append only directories
-	for _, entry := range entries {
-		if entry.IsDir() {
-			nodeFolders = append(nodeFolders, filepath.Join(dataDir, entry.Name()))
-		}
-	}
-
-	return nodeFolders, nil
-}
-
-// write chunk data to a file
-func writeChunk(filePath string, data []byte) error {
-	fmt.Printf("Writing chunk to file: %s\n", filePath)
-	return os.WriteFile(filePath, data, 0644)
+	fmt.Printf("Chunk info sent successfully to node %s\n", targetNodeIP)
 }

@@ -10,7 +10,9 @@ RUN go mod download && go mod verify
 RUN apt-get update && apt-get install -y netcat-traditional
 
 # Create the /local and /shared directories in the container
-RUN mkdir -p /local /shared
+RUN mkdir /local /shared
+
+COPY ./data/file.txt /local/
 
 COPY . .
 RUN go build -v -o /usr/local/bin/fts ./main.go

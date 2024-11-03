@@ -50,7 +50,7 @@ func GetContainerIP() (string, error) {
 func Between(id int, a int, b int, equalsTo bool) bool {
 	if a == b {
 		return true
-	} 
+	}
 	if a < b {
 		if equalsTo {
 			return id > a && id <= b
