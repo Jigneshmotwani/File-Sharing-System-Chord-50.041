@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	M = 5 // number of bits to consider for the final hash value
+	M = 5 // number of bits to consider for the final hash value or number of rows in the finger table
 )
 
 // Add hash function here

@@ -7,6 +7,8 @@ import (
 	"math"
 	"net"
 	"net/rpc"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -264,6 +266,16 @@ func (n *Node) FixFingers() {
 	}
 }
 
+// Add the GetNodeInfo method here
+func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+	reply.ID = n.ID
+	reply.IP = n.IP
+	reply.Successor = n.Successor
+	return nil
+}
+
 func CreateNode(ip string) *Node {
 	id := utils.Hash(ip) % int(math.Pow(2, float64(utils.M))) // Ensure ID is within [0, 2^m - 1]
 
@@ -300,12 +312,14 @@ func CallRPCMethod(ip string, method string, message Message) (*Message, error) 
 	return &reply, nil
 }
 
-// Add the GetNodeInfo method here
-func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
-	reply.ID = n.ID
-	reply.IP = n.IP
-	reply.Successor = n.Successor
-	return nil
+func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
+	for _, chunk := range chunks {
+		chunkFilePath := filepath.Join(dataDir, chunk.ChunkName)
+		err := os.Remove(chunkFilePath)
+		if err != nil {
+			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
+		} else {
+			fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
+		}
+	}
 }
