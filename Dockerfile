@@ -12,9 +12,7 @@ RUN apt-get update && apt-get install -y netcat-traditional
 # Create the /local and /shared directories in the container
 RUN mkdir /local /shared
 
-COPY ./data/file.txt /local/
+COPY ./data/ /local/
 
 COPY . .
 RUN go build -v -o /usr/local/bin/fts ./main.go
-
-# CMD ["fts"]

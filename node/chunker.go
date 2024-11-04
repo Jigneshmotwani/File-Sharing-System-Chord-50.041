@@ -4,7 +4,6 @@ import (
 	"distributed-chord/utils"
 	"fmt"
 	"io"
-	"net/rpc"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,16 +12,6 @@ import (
 type ChunkInfo struct {
 	Key       int
 	ChunkName string
-}
-
-// ChunkTransferRequest represents the data needed to transfer a chunk to another node
-type ChunkTransferRequest struct {
-	ChunkName string
-	Data      []byte
-}
-
-type ReceiveChunkInfoRequest struct {
-	Chunks []ChunkInfo
 }
 
 // file-chunk1-<node_id>.txt
@@ -88,34 +77,42 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 			ChunkName: chunkFileName,
 		})
 
-		fmt.Println("Chunks: %s", chunks)
+		fmt.Printf("Chunks: %v\n", chunks)
 		chunkNumber++
 	}
 
 	fmt.Println("Sending the chunks to the receiver folder of the target node ...")
 	n.send(chunks, targetNodeIP)
-	fmt.Println("Send done ...")
+
+	fmt.Printf("Chunk info sent to the target node at %s\n", targetNodeIP)
+
+	// Send the chunk info to the target node for assembling
+	message := Message{
+		ID:    n.ID,
+		ChunkTransferParams: ChunkTransferRequest{
+			Chunks: chunks,
+		},
+	}
+
+	_, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	
+	fmt.Printf("Chunks have been successfully assembled at the target node\n")
 
 	// Cleanup loop to delete each chunk file after transfer
-	for _, chunk := range chunks {
-		chunkFilePath := filepath.Join(dataDir, chunk.ChunkName)
-		err := os.Remove(chunkFilePath)
-		if err != nil {
-			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
-		} else {
-			fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
-		}
-	}
+	removeChunksFromLocal(dataDir, chunks)
 
 	return chunks
 }
 
 // ReceiveChunk handles receiving a chunk and saving it to the shared directory
-func (n *Node) ReceiveChunk(request ChunkTransferRequest, reply *string) error {
-	destinationPath := filepath.Join("/shared", request.ChunkName)
+func (n *Node) ReceiveChunk(request Message, reply *string) error {
+	destinationPath := filepath.Join("/shared", request.ChunkTransferParams.ChunkName)
 
 	// Write the chunk data to the shared directory
-	err := os.WriteFile(destinationPath, request.Data, 0644)
+	err := os.WriteFile(destinationPath, request.ChunkTransferParams.Data, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write chunk to %s: %v", destinationPath, err)
 	}
@@ -124,11 +121,11 @@ func (n *Node) ReceiveChunk(request ChunkTransferRequest, reply *string) error {
 	return nil
 }
 
-func (n *Node) ReceiveChunkInfo(request ReceiveChunkInfoRequest, reply *string) error {
-	fmt.Printf("Received chunk info: %+v\n", request.Chunks)
-	*reply = "Chunk info received successfully"
-	return nil
-}
+// func (n *Node) ReceiveChunkInfo(request ReceiveChunkInfoRequest, reply *string) error {
+// 	fmt.Printf("Received chunk info: %+v\n", request.Chunks)
+// 	*reply = "Chunk info received successfully"
+// 	return nil
+// }
 
 func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 	for _, chunk := range chunks {
@@ -153,23 +150,17 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 			continue
 		}
 
-		// Establish RPC connection to the target node
-		client, err := rpc.Dial("tcp", sendToNodeIP)
-		if err != nil {
-			fmt.Printf("Failed to connect to node %s: %v\n", sendToNodeIP, err)
-			continue
-		}
-		defer client.Close()
-
 		// Create the chunk transfer request
-		request := ChunkTransferRequest{
-			ChunkName: chunkName,
-			Data:      data,
+		request := Message{
+			Type: "CHUNK_TRANSFER",
+			ChunkTransferParams: 
+				ChunkTransferRequest{
+					ChunkName: chunkName,
+					Data:      data,
+				},
 		}
-		var response string
 
-		// Call the ReceiveChunk method on the target node
-		err = client.Call("Node.ReceiveChunk", request, &response)
+		_, err = CallRPCMethod(sendToNodeIP, "Node.ReceiveChunk", request)
 		if err != nil {
 			fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, sendToNodeIP, err)
 			continue
@@ -178,23 +169,19 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 		fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, sendToNodeIP)
 	}
 
-	client, err := rpc.Dial("tcp", targetNodeIP)
-	if err != nil {
-		fmt.Printf("Failed to connect to target node %s to send chunk info: %v\n", targetNodeIP, err)
-		return
-	}
-	defer client.Close()
+	// client, err := rpc.Dial("tcp", targetNodeIP)
+	// if err != nil {
+	// 	fmt.Printf("Failed to connect to target node %s to send chunk info: %v\n", targetNodeIP, err)
+	// 	return
+	// }
+	// defer client.Close()
 
-	// Create the chunk info transfer request
-	chunkInfoRequest := ReceiveChunkInfoRequest{Chunks: chunks}
-	var response string
-
-	// Call the ReceiveChunkInfo method on the target node
-	err = client.Call("Node.ReceiveChunkInfo", chunkInfoRequest, &response)
-	if err != nil {
-		fmt.Printf("Failed to send chunk info to node %s: %v\n", targetNodeIP, err)
-		return
-	}
+	// // Call the ReceiveChunkInfo method on the target node
+	// err = client.Call("Node.ReceiveChunkInfo", chunkInfoRequest, &response)
+	// if err != nil {
+	// 	fmt.Printf("Failed to send chunk info to node %s: %v\n", targetNodeIP, err)
+	// 	return
+	// }
 
 	fmt.Printf("Chunk info sent successfully to node %s\n", targetNodeIP)
 }
