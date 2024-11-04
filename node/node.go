@@ -41,20 +41,20 @@ const (
 )
 
 // Starting the RPC server for the nodes
-func (n *Node) StartRPCServer() {
+func (n *Node) StartRPCServer(ready chan<- bool) {
 	// Start the net RPC server
 	rpc.Register(n)
-
 	listener, err := net.Listen("tcp", n.IP)
-
 	if err != nil {
 		fmt.Printf("[NODE-%d] Error starting RPC server: %v\n", n.ID, err)
+		ready <- false
 		return
 	}
-
 	defer listener.Close()
-
 	fmt.Printf("[NODE-%d] Listening on %s\n", n.ID, n.IP)
+
+	// Signal that the server is ready
+	ready <- true
 
 	for {
 		conn, err := listener.Accept()
@@ -64,6 +64,7 @@ func (n *Node) StartRPCServer() {
 		}
 		go rpc.ServeConn(conn)
 	}
+
 }
 
 func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {

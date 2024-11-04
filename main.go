@@ -50,8 +50,17 @@ func main() {
 	fmt.Printf("Node %d created\n", n.ID)
 
 	// fca.Assembler(fca.ChunkInfo{[]string{"Node2", "Node4", "Node1"}, "C__Users_saran_Documents_GitHub_File-Sharing-System-Chord-50.041_Data_Node1_file"})
-	// Start the RPC server
-	go n.StartRPCServer()
+
+	// Create a channel to signal when the RPC server is ready
+	ready := make(chan bool)
+
+	// Start the RPC server with the ready channel
+	go n.StartRPCServer(ready)
+
+	// Wait for the RPC server to be ready
+	if serverReady := <-ready; !serverReady {
+		log.Fatal("Failed to start RPC server")
+	}
 	// Check if the node is a bootstrap node or not
 
 	if joinAddr != "" {
