@@ -142,7 +142,7 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 		}
 		newReply, err := CallRPCMethod(closest.IP, "Node.FindSuccessor", message)
 		if err != nil {
-			// return fmt.Errorf("[NODE-%d] Failed to call FindSuccessor: %v", n.ID, err)
+			return fmt.Errorf("[NODE-%d] Failed to call FindSuccessor: %v", n.ID, err)
 		}
 		*reply = *newReply
 		// fmt.Printf("[NODE-%d] Successor found via closest preceding node: %v\n", n.ID, reply.ID)
@@ -197,7 +197,7 @@ func (n *Node) Stabilize() {
 		// fmt.Printf("[NODE-%d] Stabilizing...\n", n.ID)
 		reply, err := CallRPCMethod(n.Successor.IP, "Node.GetPredecessor", Message{})
 		if err != nil {
-			// fmt.Printf("[NODE-%d] Failed to get successor's predecessor: %v\n", n.ID, err)
+			fmt.Printf("[NODE-%d] Failed to get successor's predecessor: %v\n", n.ID, err)
 			continue
 		}
 
@@ -216,7 +216,7 @@ func (n *Node) Stabilize() {
 		_, err = CallRPCMethod(n.Successor.IP, "Node.Notify", message)
 
 		if err != nil {
-			// fmt.Printf("[NODE-%d] Failed to notify successor: %v\n", n.ID, err)
+			fmt.Printf("[NODE-%d] Failed to notify successor: %v\n", n.ID, err)
 		}
 	}
 }
@@ -252,7 +252,7 @@ func (n *Node) FixFingers() {
 			var reply Message
 			err := n.FindSuccessor(message, &reply)
 			if err != nil {
-				// fmt.Printf("[NODE-%d] Failed to find successor for finger %d: %v\n", n.ID, next, err)
+				fmt.Printf("[NODE-%d] Failed to find successor for finger %d: %v\n", n.ID, next, err)
 				continue
 			}
 			// fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
@@ -287,14 +287,14 @@ func CreateNode(ip string) *Node {
 func CallRPCMethod(ip string, method string, message Message) (*Message, error) {
 	client, err := rpc.Dial("tcp", ip)
 	if err != nil {
-		// return &Message{}, fmt.Errorf("[NODE-%d] Failed to connect to node at %s: %v", message.ID, ip, err)
+		return &Message{}, fmt.Errorf("[NODE-%d] Failed to connect to node at %s: %v", message.ID, ip, err)
 	}
 	defer client.Close()
 
 	var reply Message
 	err = client.Call(method, message, &reply)
 	if err != nil {
-		// return &Message{}, fmt.Errorf("[NODE-%d] Failed to call method %s: %v", message.ID, method, err)
+		return &Message{}, fmt.Errorf("[NODE-%d] Failed to call method %s: %v", message.ID, method, err)
 	}
 
 	return &reply, nil
