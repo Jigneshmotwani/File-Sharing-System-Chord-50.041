@@ -64,7 +64,7 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	return nil
 }
 
-// Moves all the chunk files from the src to the destination folder.
+// Gets all the chunks from the nodes and compiles them into the /assemble folder.
 func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 
 	// Create the assemble folder if it doesn't exist
