@@ -321,6 +321,6 @@ func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
 		//else {
 		// 	fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
 		// }
-		fmt.Printf("Deleted chunk files from local storage.\n")
 	}
+	fmt.Printf("Deleted chunk files from local storage.\n")
 }
