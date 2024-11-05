@@ -5,6 +5,7 @@ import (
 	"distributed-chord/utils"
 	"fmt"
 	"log"
+	"net/rpc"
 	"os"
 	"time"
 )
@@ -19,7 +20,44 @@ func showmenu() {
 	fmt.Println(red + "Press 2 to see the successor and predecessor" + reset)
 	fmt.Println(red + "Press 3 to do the file transfer" + reset)
 	fmt.Println(red + "Press 4 to see the menu" + reset)
+	fmt.Println(red + "Press 5 to see all nodes in the network" + reset)
 	fmt.Println(red + "--------------------------------" + reset)
+}
+
+func getAllNodes(n *node.Node) ([]node.Pointer, error) {
+	nodes := []node.Pointer{}
+	visited := make(map[int]bool)
+	currentID := n.ID
+	currentIP := n.IP
+	nodes = append(nodes, node.Pointer{ID: currentID, IP: currentIP})
+	visited[currentID] = true
+	currentSuccessor := n.Successor
+
+	for {
+		if currentSuccessor.ID == n.ID {
+			// We've come full circle
+			break
+		}
+		if visited[currentSuccessor.ID] {
+			// We've already visited this node
+			break
+		}
+
+		client, err := rpc.Dial("tcp", currentSuccessor.IP)
+		if err != nil {
+			return nil, err
+		}
+		var successorInfo node.NodeInfo
+		err = client.Call("Node.GetNodeInfo", struct{}{}, &successorInfo)
+		client.Close()
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, node.Pointer{ID: successorInfo.ID, IP: successorInfo.IP})
+		visited[successorInfo.ID] = true
+		currentSuccessor = successorInfo.Successor
+	}
+	return nodes, nil
 }
 
 func main() {
@@ -117,6 +155,16 @@ func main() {
 			// }
 		case 4:
 			showmenu()
+		case 5:
+			nodes, err := getAllNodes(n)
+			if err != nil {
+				fmt.Printf("Error getting all nodes: %v\n", err)
+			} else {
+				fmt.Println("Nodes in the network:")
+				for _, node := range nodes {
+					fmt.Printf("Node ID: %d, IP: %s\n", node.ID, node.IP)
+				}
+			}
 		default:
 			fmt.Println("Invalid choice")
 		}
