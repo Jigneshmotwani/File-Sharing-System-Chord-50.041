@@ -14,11 +14,7 @@ type ChunkInfo struct {
 	ChunkName string
 }
 
-// file-chunk1-<node_id>.txt
-// if dup: file-chunk1-<node_id>-1.txt and so on
-
 func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
-	// Paths
 	dataDir := "/local" // Change if needed
 	const chunkSize = 1024
 	var chunks []ChunkInfo
@@ -44,9 +40,6 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	ext := filepath.Ext(fileName)
 	baseName := strings.TrimSuffix(fileName, ext)
 
-	// fmt.Println("All Perfect till here")
-	// fmt.Println("Ami tumala bhalubhashi")
-
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
 
@@ -70,7 +63,6 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 		}
 
 		fmt.Printf("Chunk %d written: %s\n", chunkNumber, chunkFilePath)
-		// hashedKey := hashChunkName(chunkFileName)
 		hashedKey := utils.Hash(chunkFileName)
 		chunks = append(chunks, ChunkInfo{
 			Key:       hashedKey,
@@ -88,7 +80,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 
 	// Send the chunk info to the target node for assembling
 	message := Message{
-		ID:    n.ID,
+		ID: n.ID,
 		ChunkTransferParams: ChunkTransferRequest{
 			Chunks: chunks,
 		},
@@ -98,7 +90,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	
+
 	fmt.Printf("Chunks have been successfully assembled at the target node\n")
 
 	// Cleanup loop to delete each chunk file after transfer
@@ -120,12 +112,6 @@ func (n *Node) ReceiveChunk(request Message, reply *string) error {
 	*reply = "Chunk received successfully"
 	return nil
 }
-
-// func (n *Node) ReceiveChunkInfo(request ReceiveChunkInfoRequest, reply *string) error {
-// 	fmt.Printf("Received chunk info: %+v\n", request.Chunks)
-// 	*reply = "Chunk info received successfully"
-// 	return nil
-// }
 
 func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 	for _, chunk := range chunks {
@@ -153,11 +139,10 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 		// Create the chunk transfer request
 		request := Message{
 			Type: "CHUNK_TRANSFER",
-			ChunkTransferParams: 
-				ChunkTransferRequest{
-					ChunkName: chunkName,
-					Data:      data,
-				},
+			ChunkTransferParams: ChunkTransferRequest{
+				ChunkName: chunkName,
+				Data:      data,
+			},
 		}
 
 		_, err = CallRPCMethod(sendToNodeIP, "Node.ReceiveChunk", request)
@@ -168,20 +153,6 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 
 		fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, sendToNodeIP)
 	}
-
-	// client, err := rpc.Dial("tcp", targetNodeIP)
-	// if err != nil {
-	// 	fmt.Printf("Failed to connect to target node %s to send chunk info: %v\n", targetNodeIP, err)
-	// 	return
-	// }
-	// defer client.Close()
-
-	// // Call the ReceiveChunkInfo method on the target node
-	// err = client.Call("Node.ReceiveChunkInfo", chunkInfoRequest, &response)
-	// if err != nil {
-	// 	fmt.Printf("Failed to send chunk info to node %s: %v\n", targetNodeIP, err)
-	// 	return
-	// }
 
 	fmt.Printf("Chunk info sent successfully to node %s\n", targetNodeIP)
 }

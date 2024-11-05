@@ -8,20 +8,6 @@ import (
 	"strconv"
 )
 
-// ASSUMPTIONS:
-// 1. The file is already chunked and stored in the Data folder
-// 2. The location slice contains the paths of the chunks to be assembled
-// 3. The ChunkInfo name does not contain the extension
-// 4. The output file is stored in the assemble folder with the format "<filename> from <fromNodeID>.<extension>"
-
-// Workflow
-// 1. Use FindSuccessor to find the node that contains the chunk using the key
-// 2. Make a RPC call to the node to get the chunk(Call jiggis function)
-// 3. Store the chunk in the assemble folder
-// 4. Repeat the process for all the chunks
-// 5. Assemble the chunks to get the original file
-// 6. OPTIONAL: Remove the chunks from the assemble folder done
-
 const (
 	dataFolder        = "/shared"   // Directory where the chunks are stored
 	assembleFolder = "/assemble" // Directory where all the chunks retrieved from the nodes are stored

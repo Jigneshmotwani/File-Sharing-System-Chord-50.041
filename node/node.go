@@ -44,7 +44,6 @@ const (
 
 // Starting the RPC server for the nodes
 func (n *Node) StartRPCServer(ready chan<- bool) {
-	// Start the net RPC server
 	rpc.Register(n)
 	listener, err := net.Listen("tcp", n.IP)
 	if err != nil {
@@ -70,7 +69,6 @@ func (n *Node) StartRPCServer(ready chan<- bool) {
 }
 
 func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
-	// Finding target node IP from ID
 	message := Message{ID: targetNodeID}
 	var reply Message
 	err := n.FindSuccessor(message, &reply)
@@ -319,8 +317,10 @@ func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
 		err := os.Remove(chunkFilePath)
 		if err != nil {
 			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
-		} else {
-			fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
-		}
+		} 
+		//else {
+		// 	fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
+		// }
+		fmt.Printf("Deleted chunk files from local storage.\n")
 	}
 }
