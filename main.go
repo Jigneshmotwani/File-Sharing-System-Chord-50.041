@@ -104,6 +104,8 @@ func main() {
 		time.Sleep(1 * time.Second)
 
 		switch choice {
+		case 0:
+			continue
 		case 1:
 			fmt.Println("Finger Table:")
 			for i, entry := range n.FingerTable {
@@ -150,6 +152,7 @@ func main() {
 				}
 			}
 		default:
+			// fmt.Println(choice)
 			fmt.Println("Invalid choice")
 		}
 		time.Sleep(5 * time.Second)
