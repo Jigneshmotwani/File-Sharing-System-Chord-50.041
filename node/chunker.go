@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type ChunkInfo struct {
@@ -54,7 +55,9 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 		}
 
 		// Create the chunk file name by appending the chunk number at the end of the sanitized path without extension
-		chunkFileName := fmt.Sprintf("%s-chunk-%d-%d%s", baseName, chunkNumber, n.ID, ext)
+		os.Setenv("TZ", "Asia/Singapore")
+		timestamp := time.Now().In(time.Local).Format("02012006_150405")
+		chunkFileName := fmt.Sprintf("%s-chunk-%d-%d-%s%s", baseName, chunkNumber, n.ID, timestamp, ext)
 		chunkFilePath := filepath.Join(dataDir, chunkFileName)
 		err = os.WriteFile(chunkFilePath, buffer[:bytesRead], 0644)
 		if err != nil {
