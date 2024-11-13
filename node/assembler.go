@@ -25,7 +25,7 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	tempChunkFile := message.ChunkTransferParams.Chunks[0].ChunkName
 
 	// Get the output file name from the chunk name
-	chunkTemplate, outputFileName, err := getFileNames(tempChunkFile, message.ID)
+	outputFileName, err := getFileNames(tempChunkFile, message.ID)
 	if err != nil {
 		return fmt.Errorf(err.Error())
 	}
@@ -36,7 +36,7 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 		return err
 	}
 
-	err = assembleChunks(outputFileName, chunkTemplate, message.ID, filepath.Ext(tempChunkFile))
+	err = assembleChunks(outputFileName, message.ChunkTransferParams.Chunks)
 	if err != nil {
 		fmt.Printf("Error assembling chunks: %v\n", err)
 		fmt.Printf("Aborting assembling...\n")
@@ -88,7 +88,7 @@ func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 }
 
 // Function to assemble all the chunks from the assemble folder
-func assembleChunks(outputFileName string, chunkName string, sourceID int, extension string) error {
+func assembleChunks(outputFileName string, chunks []ChunkInfo) error {
 	
 	// Making the output file
 	if err := os.MkdirAll(outputFolder, 0755); err != nil {
@@ -98,8 +98,6 @@ func assembleChunks(outputFileName string, chunkName string, sourceID int, exten
 	outputFilePath := filepath.Join(outputFolder, outputFileName)
 	outFile, err := os.Create(outputFilePath)
 
-	chunks, err := ioutil.ReadDir(assembleFolder)
-
 	if err != nil {
 		return fmt.Errorf("error creating output file: %v", err)
 	}
@@ -107,9 +105,9 @@ func assembleChunks(outputFileName string, chunkName string, sourceID int, exten
 
 	for i, chunk := range chunks {
 		// filename-chunk
-		content, err := ioutil.ReadFile(filepath.Join(assembleFolder, chunkName) + "-" + strconv.Itoa(i+1) + "-" + strconv.Itoa(sourceID) + extension)
+		content, err := ioutil.ReadFile(filepath.Join(assembleFolder, chunk.ChunkName))
 		if err != nil {
-			return fmt.Errorf("error reading chunk %s-chunk%d.txt: %v", chunk.Name(), int(i+1), err)
+			return fmt.Errorf("error reading chunk %s-chunk%d.txt: %v", chunk.ChunkName, int(i+1), err)
 		}
 
 		_, err = outFile.Write(content)
@@ -121,13 +119,13 @@ func assembleChunks(outputFileName string, chunkName string, sourceID int, exten
 	return nil
 }
 
-func getFileNames(chunkName string, senderID int) (string, string, error) {
+func getFileNames(chunkName string, senderID int) (string, error) {
 	for i, v := range chunkName {
 		if v == '-' && chunkName[i+1:i+6] == "chunk" {
-			return chunkName[:i+6], chunkName[:i] + "_from_" + strconv.Itoa(senderID) + filepath.Ext(chunkName), nil
+			return chunkName[:i] + "_from_" + strconv.Itoa(senderID) + filepath.Ext(chunkName), nil
 		}
 	}
-	return "", "", fmt.Errorf("error getting output file name")
+	return "", fmt.Errorf("error getting output file name")
 }
 
 // SendChunk handles sending a chunk to a requesting node

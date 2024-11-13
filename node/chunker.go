@@ -91,7 +91,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 
 	_, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err.Error()) // Print out more beutifully
 	}
 
 	fmt.Printf("Chunks have been successfully assembled at the target node\n")
