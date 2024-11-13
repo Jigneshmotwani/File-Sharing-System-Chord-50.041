@@ -40,6 +40,7 @@ type NodeInfo struct {
 
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
+
 )
 
 // Starting the RPC server for the nodes
@@ -317,10 +318,57 @@ func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
 		err := os.Remove(chunkFilePath)
 		if err != nil {
 			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
-		} 
+		}
 		//else {
 		// 	fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
 		// }
 	}
 	fmt.Printf("Deleted chunk files from local storage.\n")
+}
+
+func (n *Node) CheckPredecessor() {
+	for {
+		time.Sleep(timeInterval * time.Second)
+		if n.Predecessor != (Pointer{}) {
+			// Try to connect to predecessor
+			client, err := rpc.Dial("tcp", n.Predecessor.IP)
+			if err != nil {
+				fmt.Printf("[NODE-%d] Predecessor (Node-%d) appears to be down: %v\n",
+					n.ID, n.Predecessor.ID, err)
+
+				// Clear predecessor pointer
+				n.Lock.Lock()
+				n.Predecessor = Pointer{}
+				n.Lock.Unlock()
+
+				fmt.Printf("[NODE-%d] Predecessor pointer cleared\n", n.ID)
+				continue
+			}
+
+			// If we can connect, verify it's still alive with a ping
+			var reply Message
+			err = client.Call("Node.Ping", Message{}, &reply)
+			client.Close()
+
+			if err != nil {
+				fmt.Printf("[NODE-%d] Predecessor (Node-%d) failed to respond: %v\n",
+					n.ID, n.Predecessor.ID, err)
+
+				// Clear predecessor pointer
+				n.Lock.Lock()
+				n.Predecessor = Pointer{}
+				n.Lock.Unlock()
+
+				fmt.Printf("[NODE-%d] Predecessor pointer cleared\n", n.ID)
+			}
+		}
+	}
+}
+
+func (n *Node) Ping(message Message, reply *Message) error {
+	*reply = Message{
+		ID: n.ID,
+		IP: n.IP,
+	}
+	return nil
 }

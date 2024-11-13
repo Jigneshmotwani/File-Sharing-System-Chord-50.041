@@ -94,6 +94,8 @@ func main() {
 	go n.Stabilize()
 	// Update finger table
 	go n.FixFingers()
+	// Periodically check if predecessor is down
+	go n.CheckPredecessor()
 
 	showmenu()
 
