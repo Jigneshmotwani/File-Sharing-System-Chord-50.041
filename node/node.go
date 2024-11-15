@@ -19,13 +19,13 @@ type Pointer struct {
 }
 
 type Node struct {
-	ID          int
-	IP          string
-	Successor   Pointer
-	Predecessor Pointer
-	FingerTable []Pointer
+	ID            int
+	IP            string
+	Successor     Pointer
+	Predecessor   Pointer
+	FingerTable   []Pointer
 	SuccessorList []Pointer
-	Lock        sync.Mutex
+	Lock          sync.Mutex
 }
 
 type FileTransferRequest struct {
@@ -41,7 +41,7 @@ type NodeInfo struct {
 
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
-	r = 3 // Number of successors to keep in the successor list
+	r            = 1 // Number of successors to keep in the successor list
 )
 
 // Starting the RPC server for the nodes
@@ -241,7 +241,7 @@ func (n *Node) GetSuccessor(message Message, reply *Message) error {
 
 func (n *Node) GetSuccessorList(message Message, reply *Message) error {
 	*reply = Message{
-		ID: n.Successor.ID,
+		ID:            n.Successor.ID,
 		SuccessorList: n.SuccessorList,
 	}
 	return nil
@@ -305,7 +305,7 @@ func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
 func (n *Node) updateSuccessorList() {
 	next := Pointer{n.ID, n.IP}
 	n.SuccessorList = []Pointer{}
-	for i := 0; i < r; i ++ {
+	for i := 0; i < r; i++ {
 		successorInfo, err := CallRPCMethod(next.IP, "Node.GetSuccessor", Message{})
 		if err != nil {
 			fmt.Printf("[NODE-%d] Failed to get successor %d: %v\n", n.ID, i, err)
@@ -357,13 +357,13 @@ func CreateNode(ip string) *Node {
 	id := utils.Hash(ip) % int(math.Pow(2, float64(utils.M))) // Ensure ID is within [0, 2^m - 1]
 
 	node := &Node{
-		ID:          id,
-		IP:          ip,
-		Successor:   Pointer{ID: id, IP: ip},
-		Predecessor: Pointer{},
-		FingerTable: make([]Pointer, utils.M),
+		ID:            id,
+		IP:            ip,
+		Successor:     Pointer{ID: id, IP: ip},
+		Predecessor:   Pointer{},
+		FingerTable:   make([]Pointer, utils.M),
 		SuccessorList: make([]Pointer, 0),
-		Lock:        sync.Mutex{},
+		Lock:          sync.Mutex{},
 	}
 
 	// Initialize finger table with self to prevent nil entries

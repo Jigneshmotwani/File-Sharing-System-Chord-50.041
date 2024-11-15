@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	dataFolder        = "/shared"   // Directory where the chunks are stored
+	dataFolder     = "/shared"   // Directory where the chunks are stored
 	assembleFolder = "/assemble" // Directory where all the chunks retrieved from the nodes are stored
 	outputFolder   = "/output"   // Directory where the assembled file is stored
 )
@@ -45,7 +45,7 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 
 	fmt.Printf("File %s assembled successfully\n", outputFileName)
 
-	// Clean up the assemble folder 
+	// Clean up the assemble folder
 	removeChunksFromLocal(assembleFolder, message.ChunkTransferParams.Chunks)
 	return nil
 }
@@ -89,7 +89,7 @@ func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 
 // Function to assemble all the chunks from the assemble folder
 func assembleChunks(outputFileName string, chunks []ChunkInfo) error {
-	
+
 	// Making the output file
 	if err := os.MkdirAll(outputFolder, 0755); err != nil {
 		return fmt.Errorf("error creating output folder: %v", err)

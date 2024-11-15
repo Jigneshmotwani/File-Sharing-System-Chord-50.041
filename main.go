@@ -125,6 +125,32 @@ func main() {
 			var fileName string
 			fmt.Print("Enter Target Node ID: ")
 			fmt.Scan(&targetNodeID)
+
+			// if targetNodeID == n.ID {
+			// 	fmt.Println("Cannot transfer file to self")
+			// 	continue
+			// }
+
+			// Checking if target node exists or is alive
+			nodeExists := false
+			nodes, err := getAllNodes(n)
+			if err != nil {
+				fmt.Printf("Error getting all nodes: %v\n", err)
+			} else {
+				for _, node := range nodes {
+					if node.ID == targetNodeID {
+						fmt.Printf("Node %d exists in the network\n", targetNodeID)
+						nodeExists = true
+						break
+					}
+				}
+			}
+
+			if !nodeExists {
+				fmt.Printf("Node %d does not exist in the network\n", targetNodeID)
+				continue
+			}
+
 			// time.Sleep(5 * time.Second)
 			fmt.Print("Enter the file name to transfer: ")
 			fmt.Scan(&fileName)
@@ -134,10 +160,10 @@ func main() {
 			// time.Sleep(5 * time.Second)
 
 			// Call a function to handle the file transfer (implement this function in node package)
-			err := n.RequestFileTransfer(targetNodeID, fileName)
+			err2 := n.RequestFileTransfer(targetNodeID, fileName)
 
-			if err != nil {
-				fmt.Printf("File transfer failed: %v\n", err)
+			if err2 != nil {
+				fmt.Printf("File transfer failed: %v\n", err2)
 			}
 			// 	fmt.Println("File transfer initiated successfully.")
 			// }

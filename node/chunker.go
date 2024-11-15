@@ -131,6 +131,15 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 		sendToNodeIP := reply.IP
 		fmt.Printf("Sending chunk %s to node IP: %s\n", chunkName, sendToNodeIP)
 
+		// Get the successor list of the node
+		successorReply, err := CallRPCMethod(sendToNodeIP, "Node.GetSuccessorList", Message{})
+		if err != nil {
+			fmt.Printf("Failed to get successor list: %v\n", err)
+			continue
+		}
+		successorList := successorReply.SuccessorList
+		fmt.Printf("Successor list: %v\n", successorList)
+
 		// Read the chunk data from the local directory
 		chunkPath := filepath.Join("/local", chunkName)
 		data, err := os.ReadFile(chunkPath)
@@ -149,13 +158,42 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 		}
 
 		_, err = CallRPCMethod(sendToNodeIP, "Node.ReceiveChunk", request)
-		if err != nil {
-			fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, sendToNodeIP, err)
-			continue
-		}
+		// if err != nil {
+		// 	fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, sendToNodeIP, err)
+		// 	continue
+		// }
 
 		fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, sendToNodeIP)
+
+		for i := 0; i < len(successorList); i++ {
+			request2 := Message{
+				Type: "CHUNK_TRANSFER",
+				ChunkTransferParams: ChunkTransferRequest{
+					ChunkName: chunkName,
+					Data:      data,
+				},
+			}
+
+			successor := successorList[i]
+			_, err = CallRPCMethod(successor.IP, "Node.ReceiveChunk", request2)
+			fmt.Printf("Sending chunk to successor node with IP %v\n", successor.IP)
+			// if err != nil {
+			// 	fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, successor.IP, err)
+			// 	continue
+			// }
+			fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, successor.IP)
+		}
+
 	}
 
 	fmt.Printf("Chunk info sent successfully to node %s\n", targetNodeIP)
 }
+
+// func (n *Node) GetSuccessorList(args *Message, reply *Message) error {
+// 	successorIPs := []string{}
+// 	for _, successor := range n.SuccessorList {
+// 		successorIPs = append(successorIPs, successor.IP)
+// 	}
+// 	reply.SuccessorList = successorIPs
+// 	return nil
+// }
