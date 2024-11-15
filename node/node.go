@@ -328,31 +328,12 @@ func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
 
 func (n *Node) CheckPredecessor() {
 	for {
-		time.Sleep(timeInterval * time.Second)
+		time.Sleep((timeInterval - 4) * time.Second)
 		if n.Predecessor != (Pointer{}) {
-			// Try to connect to predecessor
-			client, err := rpc.Dial("tcp", n.Predecessor.IP)
+			// Try to ping the predecessor
+			_, err := CallRPCMethod(n.Predecessor.IP, "Node.Ping", Message{})
 			if err != nil {
-				fmt.Printf("[NODE-%d] Predecessor (Node-%d) appears to be down: %v\n",
-					n.ID, n.Predecessor.ID, err)
-
-				// Clear predecessor pointer
-				n.Lock.Lock()
-				n.Predecessor = Pointer{}
-				n.Lock.Unlock()
-
-				fmt.Printf("[NODE-%d] Predecessor pointer cleared\n", n.ID)
-				continue
-			}
-
-			// If we can connect, verify it's still alive with a ping
-			var reply Message
-			err = client.Call("Node.Ping", Message{}, &reply)
-			client.Close()
-
-			if err != nil {
-				fmt.Printf("[NODE-%d] Predecessor (Node-%d) failed to respond: %v\n",
-					n.ID, n.Predecessor.ID, err)
+				fmt.Printf("[NODE-%d] Predecessor (Node-%d) appears to be down: %v\n", n.ID, n.Predecessor.ID, err)
 
 				// Clear predecessor pointer
 				n.Lock.Lock()
