@@ -24,6 +24,7 @@ type Node struct {
 	Successor   Pointer
 	Predecessor Pointer
 	FingerTable []Pointer
+	SuccessorList []Pointer
 	Lock        sync.Mutex
 }
 
@@ -40,7 +41,7 @@ type NodeInfo struct {
 
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
-
+	r = 3 // Number of successors to keep in the successor list
 )
 
 // Starting the RPC server for the nodes
@@ -126,9 +127,15 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 	// fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
 	if utils.Between(message.ID, n.ID, n.Successor.ID, true) {
 		// message.ID is between n.ID and n.Successor.ID (inclusive of Successor ID)
+
+		// Check if the successor is alive
+		nextSuccessor := n.findNextAlive()
+		if nextSuccessor != (Pointer{}) {
+			return fmt.Errorf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
+		}
 		*reply = Message{
-			ID: n.Successor.ID,
-			IP: n.Successor.IP,
+			ID: nextSuccessor.ID,
+			IP: nextSuccessor.IP,
 		}
 		// fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
 		return nil
@@ -144,10 +151,30 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 		}
 		newReply, err := CallRPCMethod(closest.IP, "Node.FindSuccessor", message)
 		if err != nil {
-			return fmt.Errorf("[NODE-%d] Failed to call FindSuccessor: %v", n.ID, err)
+			return fmt.Errorf("[NODE-%d] Failed to find successor via RPC: %v", n.ID, err)
 		}
 		*reply = *newReply
-		// fmt.Printf("[NODE-%d] Successor found via closest preceding node: %v\n", n.ID, reply.ID)
+
+	// 		// Check the second node in the successor list as a fallback
+	// 		for i := 1; i < len(n.SuccessorList); i++ {
+	// 			successor := n.SuccessorList[i]
+	// 			fmt.Printf("[NODE-%d] Trying successor %d in list: %s\n", n.ID, successor.ID, successor.IP)
+
+	// 			// Try RPC call to the current successor in the list
+	// 			newReply, err = CallRPCMethod(successor.IP, "Node.FindSuccessor", message)
+	// 			if err == nil {
+	// 				// If the successor is alive, return its information
+	// 				*reply = *newReply
+	// 				return nil
+	// 			} else {
+	// 				// If this successor is unreachable, log and continue to the next successor
+	// 				fmt.Printf("[NODE-%d] Successor %d unreachable: %v\n", n.ID, successor.ID, err)
+	// 			}
+	// 		}
+	// 		return fmt.Errorf("[NODE-%d] No available successor found in the successor list", n.ID)
+	// 	}
+	// 	*reply = *newReply
+	// 	// fmt.Printf("[NODE-%d] Successor found via closest preceding node: %v\n", n.ID, reply.ID)
 		return nil
 	}
 }
@@ -195,7 +222,6 @@ func (n *Node) Join(joinIP string) {
 
 func (n *Node) Stabilize() {
 	for {
-		time.Sleep(timeInterval * time.Second)
 		// fmt.Printf("[NODE-%d] Stabilizing...\n", n.ID)
 		reply, err := CallRPCMethod(n.Successor.IP, "Node.GetPredecessor", Message{})
 		if err != nil {
@@ -220,6 +246,10 @@ func (n *Node) Stabilize() {
 		if err != nil {
 			fmt.Printf("[NODE-%d] Failed to notify successor: %v\n", n.ID, err)
 		}
+
+		// Update the successor list
+		n.updateSuccessorList()
+		time.Sleep(timeInterval * time.Second)
 	}
 }
 
@@ -276,6 +306,33 @@ func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
 	return nil
 }
 
+// Potential failure: When the find successor function is called, it should check if the find successor is alive or not
+// If the find successor is not alive, it should keeping checking the next successor until it finds an alive one(?)
+func (n *Node) updateSuccessorList() {
+	next := n.ID + 1
+	for i:= 0; i < r; i ++ {
+		message := Message{ID: next}
+		var reply Message
+		err := n.FindSuccessor(message, &reply)
+		if err != nil {
+			fmt.Printf("[NODE-%d] Failed to find successor for successor list: %v\n", n.ID, err)
+			continue
+		}
+		n.SuccessorList[i] = Pointer{ID: reply.ID, IP: reply.IP}
+		next = reply.ID + 1
+	}
+}
+
+func (n *Node) findNextAlive() Pointer {
+	for i := 0; i < r; i++ {
+		_, err := CallRPCMethod(n.SuccessorList[i].IP, "Node.Ping", Message{})
+		if err == nil {
+			return n.SuccessorList[i]
+		}
+	}
+	return Pointer{}
+}
+
 func CreateNode(ip string) *Node {
 	id := utils.Hash(ip) % int(math.Pow(2, float64(utils.M))) // Ensure ID is within [0, 2^m - 1]
 
@@ -285,6 +342,7 @@ func CreateNode(ip string) *Node {
 		Successor:   Pointer{ID: id, IP: ip},
 		Predecessor: Pointer{},
 		FingerTable: make([]Pointer, utils.M),
+		SuccessorList: make([]Pointer, r),
 		Lock:        sync.Mutex{},
 	}
 
