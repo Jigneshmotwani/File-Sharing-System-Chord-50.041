@@ -119,12 +119,7 @@ func main() {
 				}
 			}
 		case 2:
-			message := node.Message {
-				ID: n.Successor.ID,
-			}
-			var reply node.Message
-			n.FindSuccessor(message, &reply)
-			fmt.Printf("Successor: %v, Predecessor: %v\n", reply.ID, n.Predecessor)
+			fmt.Printf("Successor: %v, Predecessor: %v\n", n.Successor, n.Predecessor)
 		case 3:
 			var targetNodeID int
 			var fileName string

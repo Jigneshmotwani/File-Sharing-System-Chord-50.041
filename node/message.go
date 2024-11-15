@@ -4,6 +4,7 @@ type Message struct {
 	Type       string
 	ID         int
 	IP         string
+	SuccessorList []Pointer
 	ChunkTransferParams ChunkTransferRequest
 }
 

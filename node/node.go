@@ -125,17 +125,10 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
 	// fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
-	if utils.Between(message.ID, n.ID, n.Successor.ID, true) {
-		// message.ID is between n.ID and n.Successor.ID (inclusive of Successor ID)
-
-		// Check if the successor is alive
-		nextSuccessor := n.findNextAlive()
-		if nextSuccessor != (Pointer{}) {
-			return fmt.Errorf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
-		}
+	if utils.Between(message.ID, n.ID, n.Successor.ID, true) { // message.ID is between n.ID and n.Successor.ID (inclusive of Successor ID)
 		*reply = Message{
-			ID: nextSuccessor.ID,
-			IP: nextSuccessor.IP,
+			ID: n.Successor.ID,
+			IP: n.Successor.IP,
 		}
 		// fmt.Printf("[NODE-%d] Successor found: %v\n", n.ID, reply.ID)
 		return nil
@@ -154,27 +147,6 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 			return fmt.Errorf("[NODE-%d] Failed to find successor via RPC: %v", n.ID, err)
 		}
 		*reply = *newReply
-
-	// 		// Check the second node in the successor list as a fallback
-	// 		for i := 1; i < len(n.SuccessorList); i++ {
-	// 			successor := n.SuccessorList[i]
-	// 			fmt.Printf("[NODE-%d] Trying successor %d in list: %s\n", n.ID, successor.ID, successor.IP)
-
-	// 			// Try RPC call to the current successor in the list
-	// 			newReply, err = CallRPCMethod(successor.IP, "Node.FindSuccessor", message)
-	// 			if err == nil {
-	// 				// If the successor is alive, return its information
-	// 				*reply = *newReply
-	// 				return nil
-	// 			} else {
-	// 				// If this successor is unreachable, log and continue to the next successor
-	// 				fmt.Printf("[NODE-%d] Successor %d unreachable: %v\n", n.ID, successor.ID, err)
-	// 			}
-	// 		}
-	// 		return fmt.Errorf("[NODE-%d] No available successor found in the successor list", n.ID)
-	// 	}
-	// 	*reply = *newReply
-	// 	// fmt.Printf("[NODE-%d] Successor found via closest preceding node: %v\n", n.ID, reply.ID)
 		return nil
 	}
 }
@@ -222,14 +194,23 @@ func (n *Node) Join(joinIP string) {
 
 func (n *Node) Stabilize() {
 	for {
+		time.Sleep(timeInterval * time.Second)
 		// fmt.Printf("[NODE-%d] Stabilizing...\n", n.ID)
+
+		var nextSuccessor Pointer
 		reply, err := CallRPCMethod(n.Successor.IP, "Node.GetPredecessor", Message{})
 		if err != nil {
-			fmt.Printf("[NODE-%d] Failed to get successor's predecessor: %v\n", n.ID, err)
+			nextSuccessor = n.findNextAlive()
+			if nextSuccessor == (Pointer{}) {
+				fmt.Printf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
+				fmt.Printf("[NODE-%d] Failed to get successor's predecessor: %v\n", n.ID, err)
+			}
 			continue
+		} else {
+			nextSuccessor = Pointer{ID: reply.ID, IP: reply.IP}
 		}
 
-		successorPredecessor := Pointer{ID: reply.ID, IP: reply.IP}
+		successorPredecessor := Pointer{ID: nextSuccessor.ID, IP: nextSuccessor.IP}
 		if successorPredecessor != (Pointer{}) && utils.Between(successorPredecessor.ID, n.ID, n.Successor.ID, false) {
 			n.Successor = successorPredecessor
 			// fmt.Printf("[NODE-%d] Successor updated to %d\n", n.ID, n.Successor.ID)
@@ -248,9 +229,16 @@ func (n *Node) Stabilize() {
 		}
 
 		// Update the successor list
-		n.updateSuccessorList()
-		time.Sleep(timeInterval * time.Second)
+		go n.updateSuccessorList()
 	}
+}
+
+func (n *Node) GetSuccessorList(message Message, reply *Message) error {
+	*reply = Message{
+		ID: n.Successor.ID,
+		SuccessorList: n.SuccessorList,
+	}
+	return nil
 }
 
 func (n *Node) GetPredecessor(message Message, reply *Message) error {
@@ -308,23 +296,43 @@ func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
 
 // Potential failure: When the find successor function is called, it should check if the find successor is alive or not
 // If the find successor is not alive, it should keeping checking the next successor until it finds an alive one(?)
+// func (n *Node) updateSuccessorList() {
+// 	n.Lock.Lock()
+// 	defer n.Lock.Unlock()
+
+// 	next := Pointer{n.ID, n.IP}
+// 	n.SuccessorList = []Pointer{}
+// 	for i:= 0; i < r; i ++ {
+// 		successorInfo, err := CallRPCMethod(next.IP, "Node.GetSuccessor", Message{})
+// 		if err != nil {
+// 			fmt.Printf("[NODE-%d] Failed to get successor %d: %v\n", n.ID, i, err)
+// 		}
+// 		next = Pointer{ID: successorInfo.ID, IP: successorInfo.IP}
+// 		n.SuccessorList = append(n.SuccessorList, next)
+// 	}
+// 	fmt.Printf("[NODE-%d] Updated successor list: %v\n", n.ID, n.SuccessorList)
+// }
+
 func (n *Node) updateSuccessorList() {
-	next := n.ID + 1
-	for i:= 0; i < r; i ++ {
-		message := Message{ID: next}
-		var reply Message
-		err := n.FindSuccessor(message, &reply)
-		if err != nil {
-			fmt.Printf("[NODE-%d] Failed to find successor for successor list: %v\n", n.ID, err)
-			continue
-		}
-		n.SuccessorList[i] = Pointer{ID: reply.ID, IP: reply.IP}
-		next = reply.ID + 1
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	next := n.findNextAlive()
+	if next == (Pointer{}) {
+		fmt.Printf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
 	}
+
+	successorInfo, err := CallRPCMethod(next.IP, "Node.GetSuccessorList", Message{})
+	if err != nil {
+		fmt.Printf("[NODE-%d] Failed to get successor list: %v\n", n.ID, err)
+		return
+	}
+	n.SuccessorList = successorInfo.SuccessorList[:r - 1] // Removing the last element
+	n.SuccessorList = append([]Pointer{next}, n.SuccessorList...) // prepending the successor ID
 }
 
 func (n *Node) findNextAlive() Pointer {
-	for i := 0; i < r; i++ {
+	for i := range n.SuccessorList {
 		_, err := CallRPCMethod(n.SuccessorList[i].IP, "Node.Ping", Message{})
 		if err == nil {
 			return n.SuccessorList[i]
