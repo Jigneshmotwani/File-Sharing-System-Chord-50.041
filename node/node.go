@@ -41,7 +41,7 @@ type NodeInfo struct {
 
 const (
 	timeInterval = 5 // Time interval for stabilization and fixing fingers
-	r            = 1 // Number of successors to keep in the successor list
+	r            = 3 // Number of successors to keep in the successor list
 )
 
 // Starting the RPC server for the nodes

@@ -52,14 +52,13 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 
 // Gets all the chunks from the nodes and compiles them into the /assemble folder.
 func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
-
 	// Create the assemble folder if it doesn't exist
 	if err := os.MkdirAll(assembleFolder, 0755); err != nil {
 		return fmt.Errorf("error creating assemble folder: %v", err)
 	}
 
-	var reply Message
 	for _, chunk := range chunkInfo {
+		var reply Message
 		message := Message{
 			ID: chunk.Key,
 			ChunkTransferParams: ChunkTransferRequest{
@@ -67,19 +66,75 @@ func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 			},
 		}
 
-		n.FindSuccessor(message, &reply)
+		// Incase the node fails between FindSuccessor and getSuccessor List, we have upto 3 retries to handle it(can be changed)
+		maxRetries := 3
+		retries := 0
+		chunkFound := false
+		var chunkData []byte
 
-		targetNode := Pointer{ID: reply.ID, IP: reply.IP}
+		// Start of the retry loop
+		for retries < maxRetries {
+			// Find the successor of the chunk key
+			n.FindSuccessor(message, &reply)
+			targetNode := Pointer{ID: reply.ID, IP: reply.IP}
 
-		// Call the TCP function to get the chunk from the target node
-		reply, err := CallRPCMethod(targetNode.IP, "Node.SendChunk", message)
-		if err != nil {
-			return fmt.Errorf("error receiving chunk from node %d during assembly: %v", targetNode.ID, err)
+			// Introduce a sleep to simulate delay
+			// fmt.Printf("Simulating delay before contacting target node %d (%s). You can stop the node now to simulate failure.\n", targetNode.ID, targetNode.IP)
+			// time.Sleep(10 * time.Second)
+
+			// Attempt to get the successor list from the target node
+			successorReply, err := CallRPCMethod(targetNode.IP, "Node.GetSuccessorList", Message{})
+			if err != nil {
+				fmt.Printf("Failed to get successor list from node %d: %v\n", targetNode.ID, err)
+				// Node might have failed; retry FindSuccessor
+				retries++
+				fmt.Printf("Retrying FindSuccessor for chunk %s (attempt %d of %d)\n", chunk.ChunkName, retries, maxRetries)
+				continue // Retry from the beginning of the loop
+			}
+
+			// Initialize the list of nodes to try, starting with the target node
+			nodesToTry := []Pointer{targetNode}
+			// Append the successors to the nodesToTry list
+			nodesToTry = append(nodesToTry, successorReply.SuccessorList...)
+
+			// Iterate over the nodes to try
+			for _, node := range nodesToTry {
+				// Attempt to get the chunk from the node
+				reply, err := CallRPCMethod(node.IP, "Node.SendChunk", message)
+				if err != nil {
+					fmt.Printf("Error receiving chunk %s from node %d: %v\n", chunk.ChunkName, node.ID, err)
+					continue // Try the next node
+				}
+
+				// Check if the chunk data is present
+				if reply.ChunkTransferParams.Data == nil || len(reply.ChunkTransferParams.Data) == 0 {
+					fmt.Printf("Node %d does not have the chunk %s\n", node.ID, chunk.ChunkName)
+					continue // Try the next node
+				}
+
+				// Chunk has been found
+				chunkData = reply.ChunkTransferParams.Data
+				chunkFound = true
+				fmt.Printf("Chunk %s successfully retrieved from node %d\n", chunk.ChunkName, node.ID)
+				break
+			}
+
+			if chunkFound {
+				break // Exit the retry loop
+			} else {
+				// If we haven't found the chunk, increment retries and attempt FindSuccessor again
+				retries++
+				fmt.Printf("Chunk %s not found, retrying FindSuccessor (attempt %d of %d)\n", chunk.ChunkName, retries, maxRetries)
+			}
+		}
+
+		if !chunkFound {
+			return fmt.Errorf("failed to retrieve chunk %s from any node after %d attempts", chunk.ChunkName, maxRetries)
 		}
 
 		// Save the chunk data in the assemble directory
 		destinationPath := filepath.Join(assembleFolder, chunk.ChunkName)
-		err = os.WriteFile(destinationPath, reply.ChunkTransferParams.Data, 0644)
+		err := os.WriteFile(destinationPath, chunkData, 0644)
 		if err != nil {
 			return fmt.Errorf("error writing chunk %s to %s: %v", chunk.ChunkName, destinationPath, err)
 		}
@@ -112,7 +167,7 @@ func assembleChunks(outputFileName string, chunks []ChunkInfo) error {
 
 		_, err = outFile.Write(content)
 		if err != nil {
-			return fmt.Errorf("error writing chunk %s-chunk%d.txt to output file: %v", chunk, int(i+1), err)
+			return fmt.Errorf("error writing chunk %s-chunk%d.txt to output file: %v", chunk.ChunkName, int(i+1), err)
 		}
 	}
 
