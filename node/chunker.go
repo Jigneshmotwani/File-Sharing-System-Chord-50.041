@@ -209,10 +209,14 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 		return fmt.Errorf("no chunks to process")
 	}
 
+	dataDir := "/local"
+	chunks := message.ChunkTransferParams.Chunks
 	// Create a copy of the chunks to pass to the goroutine
 	chunksCopy := make([]ChunkInfo, len(message.ChunkTransferParams.Chunks))
 	copy(chunksCopy, message.ChunkTransferParams.Chunks)
 	time.Sleep(30 * time.Second)
+
+	done := make(chan error, 1)
 	// Trigger assembler as a goroutine
 	go func() {
 		// Simulate a pause to allow demonstration of node disconnection
@@ -228,10 +232,26 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 
 		var assemblerReply Message
 		err := n.Assembler(assemblerMessage, &assemblerReply)
-		if err != nil {
-			fmt.Printf("Assembler failed: %v\n", err)
-		}
+		done <- err
 	}()
+
+	select {
+	case err := <-done:
+		// If the target node is down before assembly / during chunking / during assembly using os.Exit(1)
+		if err != nil {
+			fmt.Printf("Target node is down, failed to send file transfer request. Please try again later: %v\n", err.Error())
+			removeChunksFromLocal(dataDir, chunks)
+
+			//todo: remove chunks remotely from chunk holding nodes
+		} else {
+			fmt.Println("File successfully assembled")
+		}
+	// If the target node is down during assembly using time.sleep()
+	case <-time.After(60 * time.Second):
+		fmt.Println("Assembly timeout: Target node may be down. If node recovers, assembly will continue.")
+
+		//todo: remove chunks remotely from chunk holding nodes
+	}
 
 	// Immediately return to allow sender to disconnect
 	*reply = Message{

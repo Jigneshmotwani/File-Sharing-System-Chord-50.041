@@ -18,6 +18,12 @@ const (
 // Assembler is a function that assembles the chunks of a file
 func (n *Node) Assembler(message Message, reply *Message) error {
 
+	//Simulate node faliure during assembly
+	os.Exit(1)
+
+	//Simulate node sleep during assembly, node will continue assembly process if it wakes up
+	//time.Sleep(2 * time.Minute)
+
 	if message.ChunkTransferParams.Chunks == nil || len(message.ChunkTransferParams.Chunks) == 0 {
 		return fmt.Errorf("no chunks to assemble")
 	}
@@ -94,7 +100,7 @@ func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 			if len(reply.ChunkTransferParams.Data) == 0 {
 				retries++
 				fmt.Printf("Chunk %s not found, retrying FindSuccessor (attempt %d of %d)\n", chunk.ChunkName, retries, maxRetries)
-			} else{
+			} else {
 				// Chunk has been found
 				chunkData = reply.ChunkTransferParams.Data
 				chunkFound = true
