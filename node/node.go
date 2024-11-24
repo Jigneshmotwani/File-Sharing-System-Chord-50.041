@@ -19,13 +19,14 @@ type Pointer struct {
 }
 
 type Node struct {
-	ID            int
-	IP            string
-	Successor     Pointer
-	Predecessor   Pointer
-	FingerTable   []Pointer
-	SuccessorList []Pointer
-	Lock          sync.Mutex
+	ID              int
+	IP              string
+	Successor       Pointer
+	Predecessor     Pointer
+	FingerTable     []Pointer
+	SuccessorList   []Pointer
+	Lock            sync.Mutex
+	AssemblerChunks []ChunkInfo // Field to store the assembler chunks
 }
 
 type FileTransferRequest struct {
@@ -80,37 +81,82 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 	targetNodeIP := reply.IP
 	fmt.Printf("Target node IP: %s\n", targetNodeIP)
 
+	if n.IP == targetNodeIP {
+		fmt.Println("Cannot send file to the same node.")
+		return nil
+	}
+
 	client, err := rpc.Dial("tcp", targetNodeIP)
 	if err != nil {
 		return fmt.Errorf("failed to connect to target node: %v", err)
 	}
 	defer client.Close()
 
-	var response string
 	request := FileTransferRequest{
 		SenderIP: n.IP,
 		FileName: fileName,
 	}
 
-	if request.SenderIP == targetNodeIP {
-		fmt.Println("Cannot send file to the same node.")
-		return nil
-	}
-
+	var response string
 	err = client.Call("Node.ConfirmFileTransfer", request, &response)
 	if err != nil {
 		return fmt.Errorf("failed to send file transfer request: %v", err)
 	}
 
-	// fmt.Printf("Response from target: %s\n", response)
-	if (request.SenderIP != targetNodeIP) && (response == "es") {
-		fmt.Println("Target accepted the file transfer. Initiating transfer...")
-		// Add file transfer logic here (e.g., sending the file in chunks)
-		n.Chunker(fileName, targetNodeIP)
+	if response == "es" {
+		fmt.Println("\nTarget accepted the file transfer. Initiating transfer...")
+		chunks := n.Chunker(fileName, targetNodeIP)
+		if len(chunks) > 0 {
+			fmt.Printf("\nFile transfer completed with %d chunks.\n", len(chunks))
+		} else {
+			fmt.Println("\nFile transfer failed - no chunks created.")
+		}
 	} else {
-		fmt.Println("Target declined the file transfer.")
+		fmt.Println("\nTarget declined the file transfer.")
 	}
+
+	fmt.Println("\nReturning to main menu...")
 	return nil
+}
+
+func (n *Node) handleReceiverTimeout(senderIP string) {
+	startTime := time.Now()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			elapsed := time.Since(startTime).Seconds()
+
+			// Check if the assembler has received the chunks
+			chunks := n.checkAssemblerChunks()
+			if len(chunks) > 0 {
+				fmt.Printf("\nReceived %d chunks successfully\n", len(chunks))
+				n.AssemblerChunks = []ChunkInfo{} // Clear the assembler chunks
+				return
+			}
+
+			// Handle timeout condition
+			if elapsed >= 120 {
+				fmt.Println("\n\nRECEIVER TIMEOUT: No chunks received from sender in 120 seconds")
+				fmt.Println("Sender node may have crashed.")
+				fmt.Println("\nReturning to main menu...")
+				return
+			}
+
+			fmt.Printf("\rWaiting for chunks from sender... Time elapsed: %.0f seconds", elapsed)
+		}
+	}
+}
+
+// checkAssemblerChunks checks if the Assembler has received chunks
+func (n *Node) checkAssemblerChunks() []ChunkInfo {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	// Return the current state of AssemblerChunks
+	return n.AssemblerChunks
 }
 
 func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) error {
@@ -120,6 +166,10 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 	fmt.Scanln(&userResponse)
 	// fmt.Printf("User response: %s\n", userResponse)
 	*reply = userResponse
+
+	if userResponse == "es" {
+		go n.handleReceiverTimeout(request.SenderIP)
+	}
 	return nil
 }
 
