@@ -21,6 +21,7 @@ func showmenu() {
 	fmt.Println(red + "Press 3 to do the file transfer" + reset)
 	fmt.Println(red + "Press 4 to see the menu" + reset)
 	fmt.Println(red + "Press 5 to see all nodes in the network" + reset)
+	fmt.Println(red + "Press 6 to see all the successor list" + reset)
 	fmt.Println(red + "--------------------------------" + reset)
 }
 
@@ -179,6 +180,8 @@ func main() {
 					fmt.Printf("Node ID: %d, IP: %s\n", node.ID, node.IP)
 				}
 			}
+		case 6:
+			fmt.Printf("Successor List: %v\n", n.SuccessorList)
 		default:
 			// fmt.Println(choice)
 			fmt.Println("Invalid choice")

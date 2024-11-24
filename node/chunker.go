@@ -89,6 +89,9 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 		},
 	}
 
+	fmt.Printf("Sending the chunk info to target node")
+	time.Sleep(5 * time.Second)
+
 	_, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
 	if err != nil {
 		fmt.Println(err.Error()) // Print out more beutifully

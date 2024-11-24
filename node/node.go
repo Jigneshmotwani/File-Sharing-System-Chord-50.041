@@ -126,6 +126,25 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
 	// fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
 	if utils.Between(message.ID, n.ID, n.Successor.ID, true) { // message.ID is between n.ID and n.Successor.ID (inclusive of Successor ID)
+		
+		// Check if the successor is alive
+		_, err := CallRPCMethod(n.Successor.IP, "Node.Ping", Message{})
+		if err != nil { // if the successor is not alive
+			// fmt.Printf("[NODE-%d] Successor Node-%d appears to be down.\n", n.ID, n.Successor.ID)
+			nextSuccessor := n.findNextAlive()
+
+			if nextSuccessor == (Pointer{}) { // null pointer => no successor of node n is alive(very unlikely)
+				fmt.Printf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
+				nextSuccessor = Pointer{ID: n.ID, IP: n.IP}
+			}
+
+			// fmt.Printf("[NODE-%d] next alive successor found %d\n", n.ID, nextSuccessor.ID)
+			*reply = Message{
+				ID: nextSuccessor.ID,
+				IP: nextSuccessor.IP,
+			}
+			return nil
+		}
 		*reply = Message{
 			ID: n.Successor.ID,
 			IP: n.Successor.IP,
@@ -142,10 +161,7 @@ func (n *Node) FindSuccessor(message Message, reply *Message) error {
 			// fmt.Printf("[NODE-%d] Successor is self: %v\n", n.ID, reply.ID)
 			return nil
 		}
-		newReply, err := CallRPCMethod(closest.IP, "Node.FindSuccessor", message)
-		if err != nil {
-			return fmt.Errorf("[NODE-%d] Failed to find successor via RPC: %v", n.ID, err)
-		}
+		newReply, _ := CallRPCMethod(closest.IP, "Node.FindSuccessor", message)
 		*reply = *newReply
 		return nil
 	}
@@ -283,9 +299,7 @@ func (n *Node) FixFingers() {
 			}
 			// fmt.Printf("[NODE-%d] Found successor for key %d: %v\n", n.ID, start, reply.ID)
 
-			n.Lock.Lock()
 			n.FingerTable[next] = Pointer{ID: reply.ID, IP: reply.IP}
-			n.Lock.Unlock()
 		}
 	}
 }
@@ -309,39 +323,12 @@ func (n *Node) updateSuccessorList() {
 		successorInfo, err := CallRPCMethod(next.IP, "Node.GetSuccessor", Message{})
 		if err != nil {
 			fmt.Printf("[NODE-%d] Failed to get successor %d: %v\n", n.ID, i, err)
-			break
+			continue
 		}
 		next = Pointer{ID: successorInfo.ID, IP: successorInfo.IP}
 		n.SuccessorList = append(n.SuccessorList, next)
 	}
 }
-
-// func (n *Node) updateSuccessorList() {
-// 	n.Lock.Lock()
-// 	defer n.Lock.Unlock()
-
-// 	// Join condition: If the successor list is empty,
-// 	if len(n.SuccessorList) == 0 {
-// 		n.createSuccessorList()
-// 		return
-// 	}
-
-// 	next := n.Successor
-// 	successorInfo, err := CallRPCMethod(next.IP, "Node.GetSuccessorList", Message{})
-// 	if err != nil {
-// 		fmt.Printf("[NODE-%d] Failed to get successor list: %v\n", n.ID, err)
-// 		fmt.Printf("[NODE-%d] Looking through the successor list for the next alive successor...\n", n.ID)
-// 		next = n.findNextAlive()
-// 		if next == (Pointer{}) {
-// 			fmt.Printf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
-// 		}
-// 		successorInfo, err = CallRPCMethod(next.IP, "Node.GetSuccessorList", Message{})
-// 	}
-// 	n.SuccessorList = successorInfo.SuccessorList[:r - 1] // Removing the last element
-// 	n.SuccessorList = append([]Pointer{next}, n.SuccessorList...) // prepending the successor ID
-
-// 	fmt.Printf("[NODE-%d] Updated successor list: %v\n", n.ID, n.SuccessorList)
-// }
 
 func (n *Node) findNextAlive() Pointer {
 	for i := 1; i < r; i++ {
@@ -411,14 +398,14 @@ func (n *Node) CheckPredecessor() {
 			// Try to ping the predecessor
 			_, err := CallRPCMethod(n.Predecessor.IP, "Node.Ping", Message{})
 			if err != nil {
-				fmt.Printf("[NODE-%d] Predecessor (Node-%d) appears to be down: %v\n", n.ID, n.Predecessor.ID, err)
+				// fmt.Printf("[NODE-%d] Predecessor (Node-%d) appears to be down: %v\n", n.ID, n.Predecessor.ID, err)
 
 				// Clear predecessor pointer
 				n.Lock.Lock()
 				n.Predecessor = Pointer{}
 				n.Lock.Unlock()
 
-				fmt.Printf("[NODE-%d] Predecessor pointer cleared\n", n.ID)
+				fmt.Printf("[NODE-%d] Predecessor appears to be down. Predecessor pointer cleared\n", n.ID)
 			}
 		}
 	}
