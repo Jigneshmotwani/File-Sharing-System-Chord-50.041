@@ -322,7 +322,7 @@ func (n *Node) updateSuccessorList() {
 	for i := 0; i < r; i++ {
 		successorInfo, err := CallRPCMethod(next.IP, "Node.GetSuccessor", Message{})
 		if err != nil {
-			fmt.Printf("[NODE-%d] Failed to get successor %d: %v\n", n.ID, i, err)
+			// fmt.Printf("[NODE-%d] Failed to get successor %d: %v\n", n.ID, i, err)
 			continue
 		}
 		next = Pointer{ID: successorInfo.ID, IP: successorInfo.IP}
