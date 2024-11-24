@@ -43,7 +43,8 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
-
+	fmt.Println("Waiting for 30 seconds before chunking. You can now kill the sender node.")
+	time.Sleep(30 * time.Second)
 	for {
 		bytesRead, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
@@ -89,18 +90,19 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 		},
 	}
 
-	fmt.Printf("Sending the chunk info to target node")
-	time.Sleep(5 * time.Second)
+	// fmt.Printf("Sending the chunk info to target node")
+	// time.Sleep(5 * time.Second)
 
-	_, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
+	// _, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
+	_, err = CallRPCMethod(targetNodeIP, "Node.ChunkLocationReceiver", message)
 	if err != nil {
 		fmt.Println(err.Error()) // Print out more beutifully
 	}
 
-	fmt.Printf("Chunks have been successfully assembled at the target node\n")
+	fmt.Printf("Chunk location information sent. Sender can now disconnect.\n")
 
 	// Cleanup loop to delete each chunk file after transfer
-	removeChunksFromLocal(dataDir, chunks)
+	// removeChunksFromLocal(dataDir, chunks)
 
 	return chunks
 }
@@ -200,3 +202,40 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 // 	reply.SuccessorList = successorIPs
 // 	return nil
 // }
+
+func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
+	// Validate chunk information
+	if message.ChunkTransferParams.Chunks == nil || len(message.ChunkTransferParams.Chunks) == 0 {
+		return fmt.Errorf("no chunks to process")
+	}
+
+	// Create a copy of the chunks to pass to the goroutine
+	chunksCopy := make([]ChunkInfo, len(message.ChunkTransferParams.Chunks))
+	copy(chunksCopy, message.ChunkTransferParams.Chunks)
+	time.Sleep(30 * time.Second)
+	// Trigger assembler as a goroutine
+	go func() {
+		// Simulate a pause to allow demonstration of node disconnection
+		// fmt.Println("Waiting for 30 seconds before assembly. You can now kill the sender node.")
+
+		// Create a new message for the assembler
+		assemblerMessage := Message{
+			ID: message.ID,
+			ChunkTransferParams: ChunkTransferRequest{
+				Chunks: chunksCopy,
+			},
+		}
+
+		var assemblerReply Message
+		err := n.Assembler(assemblerMessage, &assemblerReply)
+		if err != nil {
+			fmt.Printf("Assembler failed: %v\n", err)
+		}
+	}()
+
+	// Immediately return to allow sender to disconnect
+	*reply = Message{
+		Type: "CHUNK_LOCATIONS_RECEIVED",
+	}
+	return nil
+}
