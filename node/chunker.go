@@ -103,7 +103,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 }
 
 // ReceiveChunk handles receiving a chunk and saving it to the shared directory
-func (n *Node) ReceiveChunk(request Message, reply *string) error {
+func (n *Node) ReceiveChunk(request Message, reply *Message) error {
 	destinationPath := filepath.Join("/shared", request.ChunkTransferParams.ChunkName)
 
 	// Write the chunk data to the shared directory
@@ -112,7 +112,7 @@ func (n *Node) ReceiveChunk(request Message, reply *string) error {
 		return fmt.Errorf("failed to write chunk to %s: %v", destinationPath, err)
 	}
 
-	*reply = "Chunk received successfully"
+	*reply = Message{Type: "CHUNK_TRANSFER", ChunkTransferParams: request.ChunkTransferParams}
 	return nil
 }
 
@@ -158,10 +158,10 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 		}
 
 		_, err = CallRPCMethod(sendToNodeIP, "Node.ReceiveChunk", request)
-		// if err != nil {
-		// 	fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, sendToNodeIP, err)
-		// 	continue
-		// }
+		if err != nil {
+			fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, sendToNodeIP, err)
+			continue
+		}
 
 		fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, sendToNodeIP)
 
@@ -177,10 +177,10 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 			successor := successorList[i]
 			_, err = CallRPCMethod(successor.IP, "Node.ReceiveChunk", request2)
 			fmt.Printf("Sending chunk to successor node with IP %v\n", successor.IP)
-			// if err != nil {
-			// 	fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, successor.IP, err)
-			// 	continue
-			// }
+			if err != nil {
+				fmt.Printf("Failed to send chunk %s to node %s: %v\n", chunkName, successor.IP, err)
+				continue
+			}
 			fmt.Printf("Chunk %s sent successfully to node %s\n", chunkName, successor.IP)
 		}
 
