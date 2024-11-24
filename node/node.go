@@ -100,7 +100,8 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 	var response string
 	err = client.Call("Node.ConfirmFileTransfer", request, &response)
 	if err != nil {
-		return fmt.Errorf("failed to send file transfer request: %v", err)
+		// target node fail before chunking
+		return fmt.Errorf("Target node is down, failed to send file transfer request. Please try again later: %v", err)
 	}
 
 	if response == "es" {
@@ -176,7 +177,7 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 func (n *Node) FindSuccessor(message Message, reply *Message) error {
 	// fmt.Printf("[NODE-%d] Finding successor for %d...\n", n.ID, message.ID)
 	if utils.Between(message.ID, n.ID, n.Successor.ID, true) { // message.ID is between n.ID and n.Successor.ID (inclusive of Successor ID)
-		
+
 		// Check if the successor is alive
 		_, err := CallRPCMethod(n.Successor.IP, "Node.Ping", Message{})
 		if err != nil { // if the successor is not alive
@@ -439,6 +440,17 @@ func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
 		// }
 	}
 	fmt.Printf("Deleted chunk files from local storage.\n")
+}
+
+// RemoveChunksRemotely handles the RPC call to remove chunks from the target node or other nodes that hold individual chunks
+func (n *Node) RemoveChunksRemotely(request Message, reply *string) error {
+	if request.ChunkTransferParams.Chunks == nil {
+		return fmt.Errorf("no chunks provided for removal")
+	}
+
+	removeChunksFromLocal("/shared", request.ChunkTransferParams.Chunks)
+	*reply = "Chunks removed successfully"
+	return nil
 }
 
 func (n *Node) CheckPredecessor() {
