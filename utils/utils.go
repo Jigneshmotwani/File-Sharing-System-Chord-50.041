@@ -5,10 +5,17 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"sync"
+	"time"
 )
 
 const (
 	M = 5 // number of bits to consider for the final hash value or number of rows in the finger table
+)
+
+var (
+	transferStartTime time.Time
+	transferMutex     sync.RWMutex
 )
 
 // Add hash function here
@@ -62,4 +69,25 @@ func Between(id int, a int, b int, equalsTo bool) bool {
 		}
 		return id > a || id < b
 	}
+}
+
+// StartTransferTimer sets the start time for file transfer
+func StartTransferTimer() {
+	transferMutex.Lock()
+	defer transferMutex.Unlock()
+	transferStartTime = time.Now()
+}
+
+// GetTransferDuration returns the duration since transfer started
+func GetTransferDuration() time.Duration {
+	transferMutex.RLock()
+	defer transferMutex.RUnlock()
+	return time.Since(transferStartTime)
+}
+
+// GetTransferStartTime returns the transfer start time
+func GetTransferStartTime() time.Time {
+	transferMutex.RLock()
+	defer transferMutex.RUnlock()
+	return transferStartTime
 }

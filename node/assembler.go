@@ -30,6 +30,7 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	if err != nil {
 		return fmt.Errorf(err.Error())
 	}
+	time.Sleep(30 * time.Second)
 
 	err = n.getAllChunks(message.ChunkTransferParams.Chunks)
 	if err != nil {
@@ -48,6 +49,9 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 
 	// Clean up the assemble folder
 	removeChunksFromLocal(assembleFolder, message.ChunkTransferParams.Chunks)
+	n.Lock.Lock()
+	n.AssemblerChunks = message.ChunkTransferParams.Chunks // Update the chunks list
+	n.Lock.Unlock()
 	return nil
 }
 
