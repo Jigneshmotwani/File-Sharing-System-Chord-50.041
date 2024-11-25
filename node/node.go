@@ -41,8 +41,10 @@ type NodeInfo struct {
 }
 
 const (
-	timeInterval = 5 // Time interval for stabilization and fixing fingers
-	r            = 3 // Number of successors to keep in the successor list
+	timeInterval  = 5 // Time interval for stabilization and fixing fingers
+	r             = 3 // Number of successors to keep in the successor list
+	DELETE_LOCAL  = "DELETE_LOCAL"
+	DELETE_SHARED = "DELETE_SHARED"
 )
 
 // Starting the RPC server for the nodes
@@ -120,45 +122,45 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 	return nil
 }
 
-func (n *Node) handleReceiverTimeout(senderIP string) {
-	startTime := time.Now()
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+// func (n *Node) handleReceiverTimeout(senderIP string) {
+// 	startTime := time.Now()
+// 	ticker := time.NewTicker(1 * time.Second)
+// 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			elapsed := time.Since(startTime).Seconds()
+// 	for {
+// 		select {
+// 		case <-ticker.C:
+// 			elapsed := time.Since(startTime).Seconds()
 
-			// Check if the assembler has received the chunks
-			chunks := n.checkAssemblerChunks()
-			if len(chunks) > 0 {
-				fmt.Printf("\nReceived %d chunks successfully\n", len(chunks))
-				n.AssemblerChunks = []ChunkInfo{} // Clear the assembler chunks
-				return
-			}
+// 			// Check if the assembler has received the chunks
+// 			chunks := n.checkAssemblerChunks()
+// 			if len(chunks) > 0 {
+// 				fmt.Printf("\nReceived %d chunks successfully\n", len(chunks))
+// 				n.AssemblerChunks = []ChunkInfo{} // Clear the assembler chunks
+// 				return
+// 			}
 
-			// Handle timeout condition
-			if elapsed >= 120 {
-				fmt.Println("\n\nRECEIVER TIMEOUT: No chunks received from sender in 120 seconds")
-				fmt.Println("Sender node may have crashed.")
-				fmt.Println("\nReturning to main menu...")
-				return
-			}
+// 			// Handle timeout condition
+// 			if elapsed >= 30 {
+// 				fmt.Println("\n\nRECEIVER TIMEOUT: No chunks received from sender in 30 seconds")
+// 				fmt.Println("Sender node may have crashed.")
+// 				fmt.Println("\nReturning to main menu...")
+// 				return
+// 			}
 
-			fmt.Printf("\rWaiting for chunks from sender... Time elapsed: %.0f seconds", elapsed)
-		}
-	}
-}
+// 			fmt.Printf("\rs for chunks from sender... Time elapsed: %.0f seconds", elapsed)
+// 		}
+// 	}
+// }
 
-// checkAssemblerChunks checks if the Assembler has received chunks
-func (n *Node) checkAssemblerChunks() []ChunkInfo {
-	n.Lock.Lock()
-	defer n.Lock.Unlock()
+// // checkAssemblerChunks checks if the Assembler has received chunks
+// func (n *Node) checkAssemblerChunks() []ChunkInfo {
+// 	n.Lock.Lock()
+// 	defer n.Lock.Unlock()
 
-	// Return the current state of AssemblerChunks
-	return n.AssemblerChunks
-}
+// 	// Return the current state of AssemblerChunks
+// 	return n.AssemblerChunks
+// }
 
 func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) error {
 	fmt.Printf("Received file transfer request from %s for file %s\n", request.SenderIP, request.FileName)
@@ -168,9 +170,9 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 	// fmt.Printf("User response: %s\n", userResponse)
 	*reply = userResponse
 
-	if userResponse == "es" {
-		go n.handleReceiverTimeout(request.SenderIP)
-	}
+	// if userResponse == "es" {
+	// 	go n.handleReceiverTimeout(request.SenderIP)
+	// }
 	return nil
 }
 
@@ -428,28 +430,79 @@ func CallRPCMethod(ip string, method string, message Message) (*Message, error) 
 	return &reply, nil
 }
 
-func removeChunksFromLocal(dataDir string, chunks []ChunkInfo) {
-	for _, chunk := range chunks {
+func (n *Node) RemoveChunksLocal(request Message, reply *Message) error {
+	if request.ChunkTransferParams.Chunks == nil {
+		return fmt.Errorf("no chunks provided for removal")
+	}
+	dataDir := request.DataDir
+
+	for _, chunk := range request.ChunkTransferParams.Chunks {
 		chunkFilePath := filepath.Join(dataDir, chunk.ChunkName)
+
+		// Check if file exists before removal
+		if _, err := os.Stat(chunkFilePath); os.IsNotExist(err) {
+			// fmt.Printf("Chunk file %s does not exist, skipping file...\n", chunk.ChunkName)
+			continue
+		}
+
 		err := os.Remove(chunkFilePath)
 		if err != nil {
 			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
 		}
-		//else {
-		// 	fmt.Printf("Deleted chunk file %s from local storage.\n", chunk.ChunkName)
-		// }
 	}
-	fmt.Printf("Deleted chunk files from local storage.\n")
+	fmt.Printf("Deleted chunk files from " + dataDir + "\n")
+	return nil
 }
 
 // RemoveChunksRemotely handles the RPC call to remove chunks from the target node or other nodes that hold individual chunks
-func (n *Node) RemoveChunksRemotely(request Message, reply *string) error {
-	if request.ChunkTransferParams.Chunks == nil {
+func (n *Node) removeChunksRemotely(dataDir string, chunkInfo []ChunkInfo) error {
+	if len(chunkInfo) == 0 {
 		return fmt.Errorf("no chunks provided for removal")
 	}
 
-	removeChunksFromLocal("/shared", request.ChunkTransferParams.Chunks)
-	*reply = "Chunks removed successfully"
+	message := Message{
+		DataDir: dataDir,
+		ChunkTransferParams: ChunkTransferRequest{
+			Chunks: chunkInfo,
+		},
+	}
+
+	// removing chunks in /local and /assemble folders
+	if dataDir != dataFolder {
+		_, err := CallRPCMethod(n.IP, "Node.RemoveChunksLocal", message)
+		if err != nil {
+			return fmt.Errorf("failed to remove chunks from successor: %v", err)
+		}
+		return nil
+	}
+
+	// removing remote /shared folders
+	for _, v := range chunkInfo {
+		var reply Message
+		err := n.FindSuccessor(Message{ID: v.Key}, &reply)
+		if err != nil {
+			fmt.Printf("Failed to find successor: %v\n", err)
+			continue
+		}
+		// Get the successor list of the node
+		successorReply, err := CallRPCMethod(reply.IP, "Node.GetSuccessorList", Message{})
+		if err != nil {
+			fmt.Printf("Failed to get successor list: %v\n", err)
+			continue
+		}
+		successorList := successorReply.SuccessorList
+		listToDelete := []Pointer{{ID: reply.ID, IP: reply.IP}}
+
+		listToDelete = append(listToDelete, successorList...)
+		for _, successor := range listToDelete {
+			_, err := CallRPCMethod(successor.IP, "Node.RemoveChunksLocal", message)
+			if err != nil {
+				fmt.Printf("Failed to remove chunk %s from node %d: %v\n", v.ChunkName, successor.ID, err)
+			}
+		}
+	}
+
+	fmt.Printf("Deleted chunk files from /shared for this file transfer operation.\n")
 	return nil
 }
 
@@ -479,4 +532,40 @@ func (n *Node) Ping(message Message, reply *Message) error {
 		IP: n.IP,
 	}
 	return nil
+}
+
+func getAllNodes(n *Node) ([]Pointer, error) {
+	nodes := []Pointer{}
+	visited := make(map[int]bool)
+	currentID := n.ID
+	currentIP := n.IP
+	nodes = append(nodes, Pointer{ID: currentID, IP: currentIP})
+	visited[currentID] = true
+	currentSuccessor := n.Successor
+
+	for {
+		if currentSuccessor.ID == n.ID {
+			// We've come full circle
+			break
+		}
+		if visited[currentSuccessor.ID] {
+			// We've already visited this node
+			break
+		}
+
+		client, err := rpc.Dial("tcp", currentSuccessor.IP)
+		if err != nil {
+			return nil, err
+		}
+		var successorInfo NodeInfo
+		err = client.Call("Node.GetNodeInfo", struct{}{}, &successorInfo)
+		client.Close()
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, Pointer{ID: successorInfo.ID, IP: successorInfo.IP})
+		visited[successorInfo.ID] = true
+		currentSuccessor = successorInfo.Successor
+	}
+	return nodes, nil
 }
