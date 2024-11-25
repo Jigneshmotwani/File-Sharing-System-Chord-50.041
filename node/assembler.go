@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
 const (
+	localFolder    = "/local"
 	dataFolder     = "/shared"   // Directory where the chunks are stored
 	assembleFolder = "/assemble" // Directory where all the chunks retrieved from the nodes are stored
 	outputFolder   = "/output"   // Directory where the assembled file is stored
@@ -19,7 +19,7 @@ const (
 func (n *Node) Assembler(message Message, reply *Message) error {
 
 	//Simulate node faliure during assembly
-	os.Exit(1)
+	//os.Exit(1)
 
 	//Simulate node sleep during assembly, node will continue assembly process if it wakes up
 	//time.Sleep(2 * time.Minute)
@@ -36,7 +36,7 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	if err != nil {
 		return fmt.Errorf(err.Error())
 	}
-	time.Sleep(30 * time.Second)
+	// time.Sleep(30 * time.Second)
 
 	err = n.getAllChunks(message.ChunkTransferParams.Chunks)
 	if err != nil {
@@ -54,7 +54,8 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	fmt.Printf("File %s assembled successfully\n", outputFileName)
 
 	// Clean up the assemble folder
-	removeChunksFromLocal(assembleFolder, message.ChunkTransferParams.Chunks)
+	n.removeChunksRemotely(assembleFolder, message.ChunkTransferParams.Chunks)
+	n.removeChunksRemotely(dataFolder, message.ChunkTransferParams.Chunks)
 	n.Lock.Lock()
 	n.AssemblerChunks = message.ChunkTransferParams.Chunks // Update the chunks list
 	n.Lock.Unlock()
@@ -78,7 +79,7 @@ func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 		}
 
 		// Incase the node fails during assembly, we have upto 3 retries to handle it(can be changed)
-		time.Sleep(5 * time.Second)
+		// time.Sleep(5 * time.Second)
 		maxRetries := 3
 		retries := 0
 		chunkFound := false

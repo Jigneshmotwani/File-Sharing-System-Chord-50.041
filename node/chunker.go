@@ -43,8 +43,8 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
-	fmt.Println("Waiting for 30 seconds before chunking. You can now kill the sender node.")
-	time.Sleep(30 * time.Second)
+	// fmt.Println("Waiting for 30 seconds before chunking. You can now kill the sender node.")
+	// time.Sleep(30 * time.Second)
 	for {
 		bytesRead, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
@@ -102,7 +102,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	fmt.Printf("Chunk location information sent. Sender can now disconnect.\n")
 
 	// Cleanup loop to delete each chunk file after transfer
-	// removeChunksFromLocal(dataDir, chunks)
+	n.removeChunksRemotely(localFolder, chunks)
 
 	return chunks
 }
@@ -190,7 +190,6 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 		}
 
 	}
-
 	fmt.Printf("Chunk info sent successfully to node %s\n", targetNodeIP)
 }
 
@@ -209,12 +208,10 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 		return fmt.Errorf("no chunks to process")
 	}
 
-	dataDir := "/local"
-	chunks := message.ChunkTransferParams.Chunks
 	// Create a copy of the chunks to pass to the goroutine
 	chunksCopy := make([]ChunkInfo, len(message.ChunkTransferParams.Chunks))
 	copy(chunksCopy, message.ChunkTransferParams.Chunks)
-	time.Sleep(30 * time.Second)
+	// time.Sleep(30 * time.Second)
 
 	done := make(chan error, 1)
 	// Trigger assembler as a goroutine
@@ -240,17 +237,12 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 		// If the target node is down before assembly / during chunking / during assembly using os.Exit(1)
 		if err != nil {
 			fmt.Printf("Target node is down, failed to send file transfer request. Please try again later: %v\n", err.Error())
-			removeChunksFromLocal(dataDir, chunks)
-
-			//todo: remove chunks remotely from chunk holding nodes
-		} else {
-			fmt.Println("File successfully assembled")
 		}
+
 	// If the target node is down during assembly using time.sleep()
 	case <-time.After(60 * time.Second):
 		fmt.Println("Assembly timeout: Target node may be down. If node recovers, assembly will continue.")
 
-		//todo: remove chunks remotely from chunk holding nodes
 	}
 
 	// Immediately return to allow sender to disconnect
