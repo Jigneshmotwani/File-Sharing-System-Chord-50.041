@@ -96,7 +96,9 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	// _, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
 	_, err = CallRPCMethod(targetNodeIP, "Node.ChunkLocationReceiver", message)
 	if err != nil {
-		fmt.Println(err.Error()) // Print out more beutifully
+		fmt.Printf("Target node is down, please try again later: %v\n", err.Error())
+		n.removeChunksRemotely(localFolder, chunks)
+		n.removeChunksRemotely(dataFolder, chunks)
 	}
 
 	fmt.Printf("Chunk location information sent. Sender can now disconnect.\n")
@@ -236,12 +238,15 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 	case err := <-done:
 		// If the target node is down before assembly / during chunking / during assembly using os.Exit(1)
 		if err != nil {
-			fmt.Printf("Target node is down, failed to send file transfer request. Please try again later: %v\n", err.Error())
+
+			return err
+
 		}
 
 	// If the target node is down during assembly using time.sleep()
 	case <-time.After(60 * time.Second):
-		fmt.Println("Assembly timeout: Target node may be down. If node recovers, assembly will continue.")
+
+		return fmt.Errorf("assembly timeout,target node is asleep.")
 
 	}
 

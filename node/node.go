@@ -110,7 +110,8 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 		fmt.Println("\nTarget accepted the file transfer. Initiating transfer...")
 		chunks := n.Chunker(fileName, targetNodeIP)
 		if len(chunks) > 0 {
-			fmt.Printf("\nFile transfer completed with %d chunks.\n", len(chunks))
+			//i changed this to chunk transfer, since printing out file transfer completed when simulating target node faliue during assembly may look weird to prof
+			fmt.Printf("\nChunk transfer completed with %d chunks.\n", len(chunks))
 		} else {
 			fmt.Println("\nFile transfer failed - no chunks created.")
 		}
@@ -447,7 +448,8 @@ func (n *Node) RemoveChunksLocal(request Message, reply *Message) error {
 
 		err := os.Remove(chunkFilePath)
 		if err != nil {
-			fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
+			//commenting this out for now since, this message will be printed out when the target node is down during assembly
+			//fmt.Printf("Error deleting chunk file %s: %v\n", chunk.ChunkName, err)
 		}
 	}
 	fmt.Printf("Deleted chunk files from " + dataDir + "\n")
@@ -497,7 +499,8 @@ func (n *Node) removeChunksRemotely(dataDir string, chunkInfo []ChunkInfo) error
 		for _, successor := range listToDelete {
 			_, err := CallRPCMethod(successor.IP, "Node.RemoveChunksLocal", message)
 			if err != nil {
-				fmt.Printf("Failed to remove chunk %s from node %d: %v\n", v.ChunkName, successor.ID, err)
+				//commenting this out for now since, this message will be printed out when the target node is down during assembly
+				//fmt.Printf("Failed to remove chunk %s from node %d: %v\n", v.ChunkName, successor.ID, err)
 			}
 		}
 	}
