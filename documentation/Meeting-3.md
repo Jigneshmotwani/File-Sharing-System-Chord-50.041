@@ -61,4 +61,4 @@ d. **Target Node Failure**
 ### 4. Sending to Non-Existent Node
 
 - **Scenario:** A file chunk is mistakenly sent to a node that does not exist or has failed.
-- **Resolution:** The system loops through the successor list to ensure the node exists before attempting to send data. This check is enforced during all file operations, ensuring no data is sent to a non-existent node.
+- **Resolution:** The system checks if this particular node exists in the system using the Find Successor before attempting to send data. This check is enforced during file sending operation, ensuring no data is sent to a non-existent node.
