@@ -62,3 +62,19 @@ d. **Target Node Failure**
 
 - **Scenario:** A file chunk is mistakenly sent to a node that does not exist or has failed.
 - **Resolution:** The system checks if this particular node exists in the system using the Find Successor before attempting to send data. This check is enforced during file sending operation, ensuring no data is sent to a non-existent node.
+
+### 5. Other Safety Measures
+
+a. **Timestamping File**
+
+- **Scenario:** When a user sends multiple files with the same filename, there is a risk of conflict during the file assembly process, as the system may not differentiate between files with identical names.
+- **Resolution:** To prevent such collisions, each file sent by the user is assigned a unique timestamp. By appending this timestamp to the filename, the system ensures that no two files share the same name. This measure eliminates the risk of assembly conflicts and maintains the integrity of the file-sharing process.
+
+b. **Deleting Chunks from Local and Shared Folders**
+
+- **Scenario:** Over time, nodes can become congested with unnecessary file chunks that are no longer needed, such as chunks left behind after file distribution or assembly. This can lead to inefficient use of storage and reduced system performance.
+- **Resolution:** To mitigate this issue, the system automatically deletes file chunks from local and shared folders once the following conditions are met:
+  - The file has been successfully chunked and distributed to all relevant nodes.
+  - The target node has fully assembled the file.
+
+This cleanup process helps optimize storage, prevents node flooding, and ensures efficient resource utilization within the network.
