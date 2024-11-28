@@ -57,10 +57,10 @@ b. **Arbitrary Node That Might Hold Chunk Fails**
 
 c. **Sender Node Fails**
 
-- **Scenario:** The sender node fails during/ before assembly processes.
+- **Scenario:** The sender node fails before chunking or before/during assembly processes.
 - **Resolution:**
-  - Before assembly, a new function is introduced to receive chunk locations from the sender and trigger the assembly process in a go routine, ensuring the receiver can proceed with the assembly even if the sender node fails.
-  - During assembly, the system retries the chunk retrieval using the successor list to continue the process even if the sender node is unavailable.
+  - Before chunking, since chunking never got completed, chunks didn't get distributed to different node, and also the Chunk Info List didn't get delivered to the target node, there is nothing that can be done other than we can make the target node wait for some amount of time. If the target node doesn't receive it within this time limit then we delare the sender node to be disconnected from the network and file transfer process is exited.
+  - Before/during assembly, This is not really a problem since the chunk location information has already reached the target node and it can retrive all the chunks. The system retries the chunk retrieval using the successor list to continue the process even if the sender node stores any chunks in its shared folder.
 
 d. **Target Node Failure**
 
