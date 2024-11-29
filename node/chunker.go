@@ -80,7 +80,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	fmt.Println("Sending the chunks to the receiver folder of the target node ...")
 	n.send(chunks, targetNodeIP)
 
-	fmt.Printf("Chunk info sent to the target node at %s\n", targetNodeIP)
+	fmt.Printf("Chunk info sent to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
 
 	// Send the chunk info to the target node for assembling
 	message := Message{

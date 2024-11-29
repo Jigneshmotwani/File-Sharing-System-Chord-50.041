@@ -273,7 +273,7 @@ func (n *Node) Stabilize() {
 			if nextSuccessor == (Pointer{}) {
 				fmt.Printf("[NODE-%d] No Successor from the successor list is alive.", n.ID)
 				fmt.Printf("[NODE-%d] Failed to get successor's predecessor: %v\n", n.ID, err)
-				continue
+				nextSuccessor = Pointer{ID: n.ID, IP: n.IP}
 			}
 			n.Successor = nextSuccessor
 		} else {
