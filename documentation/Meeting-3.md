@@ -28,7 +28,9 @@ In the Distributed File Sharing System using the Chord protocol, fault tolerance
 
 **Data Replication for Fault Tolerance:**
 
-The successor list is used to replicate file chunk data across nodes in the Chord network. Each chunk is replicated to the nodes in the successor list of the original holder node. In the event of a node failure:
+The successor list is also leveraged to replicate file chunk data across nodes in the Chord network. The size of the successor list, denoted as r, corresponds to the number of replicas created for each file chunk. For simplicity in our case, we assign r equal to the successor list size (r=k).
+
+Each chunk is replicated to the nodes in the successor list of the original holder node. In the event of a node failure:
 
 - The replicas stored on the successors can be used to retrieve the data seamlessly.
 - The next destination for a file chunk or replica can be quickly determined by iterating through the successor list, simplifying fault recovery and enhancing system reliability.
@@ -59,8 +61,8 @@ c. **Sender Node Fails**
 
 - **Scenario:** The sender node fails before chunking or before/during assembly processes.
 - **Resolution:**
-  - Before chunking, since chunking never got completed, chunks didn't get distributed to different node, and also the Chunk Info List didn't get delivered to the target node, there is nothing that can be done other than we can make the target node wait for some amount of time. If the target node doesn't receive it within this time limit then we delare the sender node to be disconnected from the network and file transfer process is exited.
-  - Before/during assembly, This is not really a problem since the chunk location information has already reached the target node and it can retrive all the chunks. The system retries the chunk retrieval using the successor list to continue the process even if the sender node stores any chunks in its shared folder.
+  - Before chunking, since chunking never got completed, chunks didn't get distributed to different node, and also the Chunk Info List didn't get delivered to the target node, there is nothing that can be done other than we can make the target node wait for some amount of time. If the target node doesn't receive it within this time limit then we delare the sender node to be disconnected from the network and the file transfer process is exited.
+  - Before/during assembly, This is not really a problem since the chunk location information has already reached the target node and it can retrieve all the chunks. The system retries the chunk retrieval using the successor list to continue the process even if the sender node stores any chunks in its shared folder.
 
 d. **Target Node Failure**
 
