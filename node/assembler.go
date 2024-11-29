@@ -20,7 +20,7 @@ const (
 func (n *Node) Assembler(message Message, reply *Message) error {
 
 	//Simulate node faliure during assembly
-	//os.Exit(1)
+	// os.Exit(1)
 
 	//Simulate node sleep during assembly, node will continue assembly process if it wakes up
 	//time.Sleep(2 * time.Minute)
@@ -82,7 +82,8 @@ func (n *Node) getAllChunks(chunkInfo []ChunkInfo) error {
 			},
 		}
 
-		// Incase the node fails between FindSuccessor and getSuccessor List, we have upto 3 retries to handle it(can be changed)
+		// Incase the node fails during assembly, we have upto 3 retries to handle it(can be changed)
+		// time.Sleep(5 * time.Second)
 		maxRetries := 3
 		retries := 0
 		chunkFound := false
