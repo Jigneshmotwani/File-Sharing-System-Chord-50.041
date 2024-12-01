@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -29,11 +30,6 @@ type Node struct {
 	AssemblerChunks []ChunkInfo // Field to store the assembler chunks
 }
 
-type FileTransferRequest struct {
-	SenderIP string
-	FileName string
-}
-
 type NodeInfo struct {
 	ID        int
 	IP        string
@@ -41,29 +37,35 @@ type NodeInfo struct {
 }
 
 const (
-	timeInterval  = 5 // Time interval for stabilization and fixing fingers
-	r             = 3 // Number of successors to keep in the successor list
-	DELETE_LOCAL  = "DELETE_LOCAL"
-	DELETE_SHARED = "DELETE_SHARED"
+	timeInterval = 15       // Time interval for stabilization and fixing fingers
+	r            = 3         // Number of successors to keep in the successor list
+	retries      = 3         // Number of retries for file transfer
+	CONFIRM      = "CONFIRM" // Confirm file transfer
+	REJECT       = "REJECT"  // Deny file transfer
 )
 
+var IsSleeping atomic.Bool
+
 // Starting the RPC server for the nodes
-func (n *Node) StartRPCServer(ready chan<- bool) {
+func (n *Node) StartRPCServer() {
+	IsSleeping.Store(false) // Initially no partition
 	rpc.Register(n)
 	listener, err := net.Listen("tcp", n.IP)
 	if err != nil {
 		fmt.Printf("[NODE-%d] Error starting RPC server: %v\n", n.ID, err)
-		ready <- false
 		return
 	}
 	defer listener.Close()
 	fmt.Printf("[NODE-%d] Listening on %s\n", n.ID, n.IP)
 
-	// Signal that the server is ready
-	ready <- true
-
 	for {
 		conn, err := listener.Accept()
+		if IsSleeping.Load() {
+			fmt.Printf("[NODE-%d] Network partition detected. Waiting for recovery...\n", n.ID)
+			conn.Close()
+			time.Sleep(1 * time.Second)
+			continue
+		}
 		if err != nil {
 			fmt.Printf("[NODE-%d] accept error: %s\n", n.ID, err)
 			return
@@ -74,12 +76,24 @@ func (n *Node) StartRPCServer(ready chan<- bool) {
 }
 
 func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
-	message := Message{ID: targetNodeID}
 	var reply Message
-	err := n.FindSuccessor(message, &reply)
-	if err != nil {
-		return fmt.Errorf("failed to find successor: %v", err)
+	var err error
+	message := Message{ID: targetNodeID}
+
+	for i := 0; i < retries; i++ {
+		err := n.FindSuccessor(message, &reply)
+		if err != nil {
+			return fmt.Errorf("failed to find successor: %v", err)
+		}
+		if reply.ID != targetNodeID {
+			fmt.Printf("Node %d not found. Retrying to find successor (attempt %d of %d)\n", targetNodeID, i+1, retries)
+			time.Sleep(3 * time.Second) // retry after 3 seconds
+		} else {
+			break
+		}
 	}
+
+	time.Sleep(5 * time.Second) // Sleep for checking if the find successor detects the target node as alive but is actually sleeping.
 	targetNodeIP := reply.IP
 	fmt.Printf("Target node IP: %s\n", targetNodeIP)
 
@@ -88,25 +102,32 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 		return nil
 	}
 
-	client, err := rpc.Dial("tcp", targetNodeIP)
-	if err != nil {
-		return fmt.Errorf("failed to connect to target node: %v", err)
-	}
-	defer client.Close()
-
-	request := FileTransferRequest{
-		SenderIP: n.IP,
+	request := Message{
+		IP:       n.IP,
 		FileName: fileName,
 	}
 
-	var response string
-	err = client.Call("Node.ConfirmFileTransfer", request, &response)
-	if err != nil {
-		// target node fail before chunking
-		return fmt.Errorf("Target node is down, failed to send file transfer request. Please try again later: %v", err)
+	var response *Message
+	var success bool
+	for i := 0; i < retries; i++ {
+		success = false
+		response, err = CallRPCMethod(targetNodeIP, "Node.ConfirmFileTransfer", request)
+		if err != nil {
+			// target node fail before chunking
+			fmt.Printf("[NODE-%d] Error confirming file transfer.\n", n.ID)
+			fmt.Printf("[NODE-%d] Retrying file transfer confirmation to node %d (attempt %d of %d)\n", n.ID, targetNodeID, i+1, retries)
+			time.Sleep(3 * time.Second) // retry after 3 seconds
+		} else {
+			success = true
+			break
+		}
 	}
 
-	if response == "es" {
+	if !success {
+		return fmt.Errorf("failed to confirm file transfer after %d attempts", retries)
+	}
+
+	if response.Type == CONFIRM {
 		fmt.Println("\nTarget accepted the file transfer. Initiating transfer...")
 		chunks := n.Chunker(fileName, targetNodeIP)
 		if len(chunks) > 0 {
@@ -164,14 +185,21 @@ func (n *Node) checkAssemblerChunks() []ChunkInfo {
 	return n.AssemblerChunks
 }
 
-func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) error {
-	fmt.Printf("Received file transfer request from %s for file %s\n", request.SenderIP, request.FileName)
+func (n *Node) ConfirmFileTransfer(request Message, reply *Message) error {
+	fmt.Printf("Received file transfer request from %s for file %s\n", request.IP, request.FileName)
 	var userResponse string
 	fmt.Print("Do you want to receive the file? (yes/no):")
 	fmt.Scanln(&userResponse)
 	// fmt.Printf("User response: %s\n", userResponse)
-	*reply = userResponse
-
+	if userResponse == "yes" {
+		*reply = Message{
+			Type: CONFIRM,
+		}
+	} else {
+		*reply = Message{
+			Type: REJECT,
+		}
+	}
 	// If condition to handle sender node failing before chunking (before sending chunk info) and before/during assembly (after sending chunk info)
 	// if userResponse == "es" {
 	// 	go n.handleReceiverTimeout(request.SenderIP)
@@ -267,6 +295,7 @@ func (n *Node) Join(joinIP string) {
 func (n *Node) Stabilize() {
 	for {
 		time.Sleep(timeInterval * time.Second)
+
 		// fmt.Printf("[NODE-%d] Stabilizing...\n", n.ID)
 
 		reply, err := CallRPCMethod(n.Successor.IP, "Node.GetPredecessor", Message{})
@@ -373,6 +402,8 @@ func (n *Node) GetNodeInfo(args struct{}, reply *NodeInfo) error {
 // Potential failure: When the find successor function is called, it should check if the find successor is alive or not
 // If the find successor is not alive, it should keeping checking the next successor until it finds an alive one(?)
 func (n *Node) updateSuccessorList() {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
 	next := Pointer{n.ID, n.IP}
 	n.SuccessorList = []Pointer{}
 	for i := 0; i < r; i++ {
@@ -387,6 +418,13 @@ func (n *Node) updateSuccessorList() {
 }
 
 func (n *Node) findNextAlive() Pointer {
+	n.Lock.Lock()
+	defer n.Lock.Unlock()
+
+	if len(n.SuccessorList) <= 1 {
+		return Pointer{}
+	}
+
 	for i := 1; i < r; i++ {
 		reply, err := CallRPCMethod(n.SuccessorList[i].IP, "Node.Ping", Message{})
 		if err == nil && reply != nil {
@@ -513,7 +551,7 @@ func (n *Node) removeChunksRemotely(dataDir string, chunkInfo []ChunkInfo) error
 
 func (n *Node) CheckPredecessor() {
 	for {
-		time.Sleep((timeInterval - 4) * time.Second)
+		time.Sleep(timeInterval * time.Second)
 		if n.Predecessor != (Pointer{}) {
 			// Try to ping the predecessor
 			_, err := CallRPCMethod(n.Predecessor.IP, "Node.Ping", Message{})

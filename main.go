@@ -22,6 +22,7 @@ func showmenu() {
 	fmt.Println(red + "Press 4 to see the menu" + reset)
 	fmt.Println(red + "Press 5 to see all nodes in the network" + reset)
 	fmt.Println(red + "Press 6 to see all the successor list" + reset)
+	fmt.Println(red + "Press 7 to simulate network partition/node sleeping" + reset)
 	fmt.Println(red + "--------------------------------" + reset)
 }
 
@@ -75,16 +76,7 @@ func main() {
 
 	fmt.Printf("Node %d created\n", n.ID)
 
-	// Create a channel to signal when the RPC server is ready
-	ready := make(chan bool)
-
-	// Start the RPC server with the ready channel
-	go n.StartRPCServer(ready)
-
-	// Wait for the RPC server to be ready
-	if serverReady := <-ready; !serverReady {
-		log.Fatal("Failed to start RPC server")
-	}
+	go n.StartRPCServer()
 
 	if joinAddr != "" {
 		// Join the network
@@ -182,6 +174,12 @@ func main() {
 			}
 		case 6:
 			fmt.Printf("Successor List: %v\n", n.SuccessorList)
+		case 7:
+			fmt.Printf("Simulating network partition/node sleeping for 10 seconds\n")
+			node.IsSleeping.Store(true)
+			time.Sleep(20 * time.Second)
+			node.IsSleeping.Store(false)
+			fmt.Printf("Network partition/node sleeping simulation over\n")
 		default:
 			// fmt.Println(choice)
 			fmt.Println("Invalid choice")

@@ -6,7 +6,13 @@ type Message struct {
 	IP                  string
 	SuccessorList       []Pointer
 	DataDir             string
+	FileName string
 	ChunkTransferParams ChunkTransferRequest
+}
+
+type FileTransferRequest struct {
+	SenderIP string
+	FileName string
 }
 
 // Struct to hold the chunk transfer request
