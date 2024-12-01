@@ -574,3 +574,11 @@ func getAllNodes(n *Node) ([]Pointer, error) {
 	}
 	return nodes, nil
 }
+
+func (n *Node) ForceExit(message Message, reply *Message) error {
+	fmt.Println("Received force exit command. Node shutting down...")
+	go func() {
+		os.Exit(1)
+	}()
+	return nil
+}
