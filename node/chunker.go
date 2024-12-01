@@ -73,12 +73,30 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 			ChunkName: chunkFileName,
 		})
 
+		//Simulate Target Node failure during chunking
+
+		//Force exit the target node after writing a few chunks (e.g., after 2 chunks)
+		// if chunkNumber == 2 {
+		// 	fmt.Printf("Triggering target node failure...\n")
+		// 	_, err = CallRPCMethod(targetNodeIP, "Node.ForceExit", Message{})
+		// 	if err != nil {
+		// 		fmt.Printf("Failed to trigger target node failure: %v\n", err)
+		// 	}
+		// }
+
 		fmt.Printf("Chunks: %v\n", chunks)
 		chunkNumber++
 	}
 
 	fmt.Println("Sending the chunks to the receiver folder of the target node ...")
-	n.send(chunks, targetNodeIP)
+	err = n.send(chunks, targetNodeIP)
+	if err != nil {
+		fmt.Printf("Target Node is down,failed to send chunks to target node: %v\n", err)
+		// Cleanup chunks since sending failed
+		n.removeChunksRemotely(localFolder, chunks)
+		n.removeChunksRemotely(dataFolder, chunks)
+		return nil
+	}
 
 	fmt.Printf("Chunk info sent to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
 
@@ -123,7 +141,7 @@ func (n *Node) ReceiveChunk(request Message, reply *Message) error {
 	return nil
 }
 
-func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
+func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) error {
 	for _, chunk := range chunks {
 		var key = chunk.Key
 		var chunkName = chunk.ChunkName
@@ -193,6 +211,7 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) {
 
 	}
 	fmt.Printf("Chunk info sent successfully to node %s\n", targetNodeIP)
+	return nil
 }
 
 // func (n *Node) GetSuccessorList(args *Message, reply *Message) error {
@@ -209,6 +228,9 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 	if message.ChunkTransferParams.Chunks == nil || len(message.ChunkTransferParams.Chunks) == 0 {
 		return fmt.Errorf("no chunks to process")
 	}
+
+	//Simulate target node failure before assembly
+	//os.Exit(1)
 
 	// Create a copy of the chunks to pass to the goroutine
 	chunksCopy := make([]ChunkInfo, len(message.ChunkTransferParams.Chunks))
@@ -241,7 +263,7 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 
 	select {
 	case err := <-done:
-		// If the target node is down before assembly / during chunking / during assembly using os.Exit(1)
+		// If the target node during assembly using os.Exit(1)
 		if err != nil {
 
 			return err
