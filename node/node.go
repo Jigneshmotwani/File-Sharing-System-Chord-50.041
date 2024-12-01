@@ -123,6 +123,7 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 	return nil
 }
 
+// Function to handle sender node failing before chunking (before sending chunk info) and before/during assembly (after sending chunk info)
 // func (n *Node) handleReceiverTimeout(senderIP string) {
 // 	startTime := time.Now()
 // 	ticker := time.NewTicker(1 * time.Second)
@@ -171,6 +172,7 @@ func (n *Node) ConfirmFileTransfer(request FileTransferRequest, reply *string) e
 	// fmt.Printf("User response: %s\n", userResponse)
 	*reply = userResponse
 
+	// If condition to handle sender node failing before chunking (before sending chunk info) and before/during assembly (after sending chunk info)
 	// if userResponse == "es" {
 	// 	go n.handleReceiverTimeout(request.SenderIP)
 	// }
