@@ -17,6 +17,9 @@ const (
 
 // Assembler is a function that assembles the chunks of a file
 func (n *Node) Assembler(message Message, reply *Message) error {
+	n.Lock.Lock()
+	n.AssemblerChunks = message.ChunkTransferParams.Chunks // Update the chunks list
+	n.Lock.Unlock()
 
 	//Simulate node faliure during assembly
 	// os.Exit(1)
@@ -36,7 +39,14 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	if err != nil {
 		return fmt.Errorf(err.Error())
 	}
+
+	// Single node failure - Simulate node failure before/during assembly (after sending chunk info)
+	// fmt.Printf("Pausing for 10 seconds before assembly. You can stop the sender now to simulate failure.\n")
 	// time.Sleep(10 * time.Second)
+
+	// Multiple Node Failures - Simulate node failure after during assembly
+	// fmt.Printf("Pausing for 20 seconds during assembly. Crash other nodes now.\n")
+	// time.Sleep(20 * time.Second)
 
 	err = n.getAllChunks(message.ChunkTransferParams.Chunks)
 	if err != nil {

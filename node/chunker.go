@@ -43,8 +43,11 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 
 	buffer := make([]byte, chunkSize)
 	chunkNumber := 1
-	fmt.Println("Waiting for 10 seconds before chunking. You can now kill the sender node.")
+
+	// Single node failure - Simulate node failure before chunking (before sending chunk info)
+	// fmt.Println("Waiting for 10 seconds before chunking. You can now kill the sender node.")
 	// time.Sleep(10 * time.Second)
+
 	for {
 		bytesRead, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
@@ -78,6 +81,11 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 	}
 
 	fmt.Println("Sending the chunks to the receiver folder of the target node ...")
+
+	// Multiple Node Failures - Simulate node failure after during chunking
+	// fmt.Printf("Pausing for 20 seconds during chunking. Crash other nodes now.\n")
+	// time.Sleep(20 * time.Second)
+
 	n.send(chunks, targetNodeIP)
 
 	fmt.Printf("Chunk info sent to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
@@ -213,6 +221,8 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 	// Create a copy of the chunks to pass to the goroutine
 	chunksCopy := make([]ChunkInfo, len(message.ChunkTransferParams.Chunks))
 	copy(chunksCopy, message.ChunkTransferParams.Chunks)
+
+	// Single node failure - Simulate node failure before chunking (before sending chunk info)
 	// time.Sleep(10 * time.Second)
 
 	done := make(chan error, 1)
@@ -231,7 +241,7 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 
 		var assemblerReply Message
 
-		// Multiple Node Failures - Simulate node faliure after chunking
+		// Multiple Node Failures - Simulate node failure after chunking/before assembly
 		// fmt.Printf("Pausing for 20 seconds before assembly. Crash other nodes now.\n")
 		// time.Sleep(20 * time.Second)
 
