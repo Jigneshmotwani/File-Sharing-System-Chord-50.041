@@ -37,7 +37,7 @@ type NodeInfo struct {
 }
 
 const (
-	timeInterval = 15       // Time interval for stabilization and fixing fingers
+	timeInterval = 15        // Time interval for stabilization and fixing fingers
 	r            = 3         // Number of successors to keep in the successor list
 	retries      = 3         // Number of retries for file transfer
 	CONFIRM      = "CONFIRM" // Confirm file transfer
@@ -129,7 +129,8 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 
 	if response.Type == CONFIRM {
 		fmt.Println("\nTarget accepted the file transfer. Initiating transfer...")
-		chunks := n.Chunker(fileName, targetNodeIP)
+		startTime := time.Now()
+		chunks := n.Chunker(fileName, targetNodeIP, startTime)
 		if len(chunks) > 0 {
 			//i changed this to chunk transfer, since printing out file transfer completed when simulating target node faliue during assembly may look weird to prof
 			fmt.Printf("\nChunk transfer completed with %d chunks.\n", len(chunks))
@@ -145,36 +146,36 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 }
 
 // Function to handle sender node failing before chunking (before sending chunk info) and before/during assembly (after sending chunk info)
-// func (n *Node) handleReceiverTimeout(senderIP string) {
-// 	startTime := time.Now()
-// 	ticker := time.NewTicker(1 * time.Second)
-// 	defer ticker.Stop()
+func (n *Node) handleReceiverTimeout(senderIP string) {
+	startTime := time.Now()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
-// 	for {
-// 		select {
-// 		case <-ticker.C:
-// 			elapsed := time.Since(startTime).Seconds()
+	for {
+		select {
+		case <-ticker.C:
+			elapsed := time.Since(startTime).Seconds()
 
-// 			// Check if the assembler has received the chunks
-// 			chunks := n.checkAssemblerChunks()
+			// Check if the assembler has received the chunks
+			chunks := n.checkAssemblerChunks()
 
-// 			// fmt.Printf("Chunks and length: %v, %d", chunks, len(chunks))
-// 			if len(chunks) > 0 {
-// 				fmt.Printf("\nReceived %d chunks successfully\n", len(chunks))
-// 				n.AssemblerChunks = []ChunkInfo{} // Clear the assembler chunks
-// 				return
-// 			}
-// 			if elapsed >= 35 && len(chunks) == 0 {
-// 				fmt.Println("\n\nRECEIVER TIMEOUT: No chunks received from sender in 30 seconds")
-// 				fmt.Println("Sender node may have crashed.")
-// 				fmt.Println("\nReturning to main menu...")
-// 				return
-// 			}
+			// fmt.Printf("Chunks and length: %v, %d", chunks, len(chunks))
+			if len(chunks) > 0 {
+				fmt.Printf("\nReceived %d chunks successfully\n", len(chunks))
+				n.AssemblerChunks = []ChunkInfo{} // Clear the assembler chunks
+				return
+			}
+			if elapsed >= 35 && len(chunks) == 0 {
+				fmt.Println("\n\nRECEIVER TIMEOUT: No chunks received from sender in 30 seconds")
+				fmt.Println("Sender node may have crashed.")
+				fmt.Println("\nReturning to main menu...")
+				return
+			}
 
-// 			fmt.Printf("\rs for chunks from sender... Time elapsed: %.0f seconds", elapsed)
-// 		}
-// 	}
-// }
+			fmt.Printf("\rs for chunks from sender... Time elapsed: %.0f seconds", elapsed)
+		}
+	}
+}
 
 // checkAssemblerChunks checks if the Assembler has received chunks
 func (n *Node) checkAssemblerChunks() []ChunkInfo {
@@ -190,8 +191,10 @@ func (n *Node) ConfirmFileTransfer(request Message, reply *Message) error {
 	var userResponse string
 	fmt.Print("Do you want to receive the file? (yes/no):")
 	fmt.Scanln(&userResponse)
+	// fmt.Printf()
 	// fmt.Printf("User response: %s\n", userResponse)
-	if userResponse == "yes" {
+	if userResponse == "es" {
+		go n.handleReceiverTimeout(request.IP)
 		*reply = Message{
 			Type: CONFIRM,
 		}
@@ -202,7 +205,7 @@ func (n *Node) ConfirmFileTransfer(request Message, reply *Message) error {
 	}
 	// If condition to handle sender node failing before chunking (before sending chunk info) and before/during assembly (after sending chunk info)
 	// if userResponse == "es" {
-	// 	go n.handleReceiverTimeout(request.SenderIP)
+
 	// }
 	return nil
 }

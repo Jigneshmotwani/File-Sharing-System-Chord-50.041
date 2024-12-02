@@ -95,7 +95,7 @@ func main() {
 	for {
 		var choice int
 		fmt.Print("Enter choice:")
-		fmt.Scan(&choice)
+		fmt.Scanln(&choice)
 		time.Sleep(1 * time.Second)
 
 		switch choice {

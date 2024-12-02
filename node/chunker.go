@@ -15,7 +15,7 @@ type ChunkInfo struct {
 	ChunkName string
 }
 
-func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
+func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time) []ChunkInfo {
 	dataDir := "/local" // Change if needed
 	const chunkSize = 1024
 	var chunks []ChunkInfo
@@ -105,16 +105,23 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 		return nil
 	}
 
-	fmt.Printf("Chunk info sent to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
-
 	// Send the chunk info to the target node for assembling
+	elapsedTime := time.Since(startTime).Seconds()
+	if elapsedTime >= 10 {
+		fmt.Println("\nFile transfer took longer than expected. Please retry.")
+		// Clean up chunks
+		n.removeChunksRemotely(localFolder, chunks)
+		n.removeChunksRemotely(dataFolder, chunks)
+		return nil
+	}
+
 	message := Message{
 		ID: n.ID,
 		ChunkTransferParams: ChunkTransferRequest{
 			Chunks: chunks,
 		},
 	}
-
+	fmt.Printf("Chunk info sent to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
 	// fmt.Printf("Sending the chunk info to target node")
 	// time.Sleep(5 * time.Second)
 
@@ -125,8 +132,6 @@ func (n *Node) Chunker(fileName string, targetNodeIP string) []ChunkInfo {
 		n.removeChunksRemotely(localFolder, chunks)
 		n.removeChunksRemotely(dataFolder, chunks)
 	}
-
-	fmt.Printf("Chunk location information sent. Sender can now disconnect.\n")
 
 	// Cleanup loop to delete each chunk file after transfer
 	n.removeChunksRemotely(localFolder, chunks)
