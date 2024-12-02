@@ -18,6 +18,7 @@ type ChunkInfo struct {
 func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time) []ChunkInfo {
 	dataDir := "/local" // Change if needed
 	const chunkSize = 1024
+	const TargetRetry = 10 * time.Second
 	var chunks []ChunkInfo
 
 	// checking if the file exists in the loacl file path of the docker container
@@ -121,19 +122,29 @@ func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time
 			Chunks: chunks,
 		},
 	}
-	fmt.Printf("Chunk info sent to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
-	// fmt.Printf("Sending the chunk info to target node")
-	// time.Sleep(5 * time.Second)
+	fmt.Printf("Sending chunk info to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
 
-	// _, err = CallRPCMethod(targetNodeIP, "Node.Assembler", message)
-	_, err = CallRPCMethod(targetNodeIP, "Node.ChunkLocationReceiver", message)
-	if err != nil {
-		fmt.Printf("Target node is down, please try again later: %v\n", err.Error())
-		n.removeChunksRemotely(localFolder, chunks)
-		n.removeChunksRemotely(dataFolder, chunks)
+	retryInterval := 2 * time.Second
+	retryStartTime := time.Now()
+	var sendErr error
+
+	for time.Since(retryStartTime) < TargetRetry {
+		_, sendErr = CallRPCMethod(targetNodeIP, "Node.ChunkLocationReceiver", message)
+		if sendErr == nil {
+			// Successfully sent the chunk info
+			break
+		}
+		fmt.Printf("Failed to send chunk info to target node: %v. Retrying in %v...\n", sendErr, retryInterval)
+		time.Sleep(retryInterval)
 	}
 
-	// Cleanup loop to delete each chunk file after transfer
+	if sendErr != nil {
+		fmt.Printf("Failed to send chunk info to target node after %v: %v\n", TargetRetry, sendErr)
+		n.removeChunksRemotely(localFolder, chunks)
+		n.removeChunksRemotely(dataFolder, chunks)
+		return nil
+	}
+
 	n.removeChunksRemotely(localFolder, chunks)
 
 	return chunks
@@ -236,6 +247,11 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) error {
 // }
 
 func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
+
+	// Fault Tolerance - Torget node is unreachabele/sleeping before the chunks array are sent (may or may not come back alive)
+	// fmt.Printf("[NODE-%d] Simulating sleep. Ignoring requests for 12 seconds...Kill the current node\n", n.ID)
+	// time.Sleep(12 * time.Second)
+
 	// Validate chunk information
 	if message.ChunkTransferParams.Chunks == nil || len(message.ChunkTransferParams.Chunks) == 0 {
 		return fmt.Errorf("no chunks to process")
