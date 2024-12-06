@@ -17,7 +17,7 @@ type ChunkInfo struct {
 
 func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time) []ChunkInfo {
 	dataDir := "/local" // Change if needed
-	const chunkSize = 1024
+	const chunkSize = 1000000
 	const TargetRetry = 10 * time.Second
 	var chunks []ChunkInfo
 
@@ -120,6 +120,11 @@ func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time
 	}
 	fmt.Printf("Sending chunk info to the target node at %s. Chunk info %v\n", targetNodeIP, chunks)
 
+	// Uncomment this for target node sleeping before receiving chunk info
+	fmt.Printf("Going to send to chunk location receiver\n")
+	fmt.Printf("Kill the target node in the 3 second duration.\n")
+	time.Sleep(3 * time.Second)
+	
 	retryInterval := 2 * time.Second
 	retryStartTime := time.Now()
 	var sendErr error
@@ -245,8 +250,8 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) error {
 func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 
 	// Fault Tolerance - Torget node is unreachabele/sleeping before the chunks array are sent (may or may not come back alive)
-	// fmt.Printf("[NODE-%d] Simulating sleep. Ignoring requests for 12 seconds...Kill the current node\n", n.ID)
-	// time.Sleep(12 * time.Second)
+	fmt.Printf("[NODE-%d] Simulating sleep. Ignoring requests for 12 seconds...Kill the current node\n", n.ID)
+	// os.Exit(0)
 
 	// Validate chunk information
 	if message.ChunkTransferParams.Chunks == nil || len(message.ChunkTransferParams.Chunks) == 0 {

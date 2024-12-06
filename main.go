@@ -177,7 +177,7 @@ func main() {
 		case 7:
 			fmt.Printf("Simulating network partition/node sleeping for 10 seconds\n")
 			node.IsSleeping.Store(true)
-			time.Sleep(20 * time.Second)
+			time.Sleep(7 * time.Second)
 			node.IsSleeping.Store(false)
 			fmt.Printf("Network partition/node sleeping simulation over\n")
 		default:
