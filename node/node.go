@@ -37,7 +37,7 @@ type NodeInfo struct {
 }
 
 const (
-	timeInterval = 15        // Time interval for stabilization and fixing fingers
+	timeInterval = 5        // Time interval for stabilization and fixing fingers
 	r            = 3         // Number of successors to keep in the successor list
 	retries      = 3         // Number of retries for file transfer
 	CONFIRM      = "CONFIRM" // Confirm file transfer
@@ -93,7 +93,7 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 		}
 	}
 
-	time.Sleep(5 * time.Second) // Sleep for checking if the find successor detects the target node as alive but is actually sleeping.
+	// time.Sleep(5 * time.Second) // Sleep for checking if the find successor detects the target node as alive but is actually sleeping.
 	targetNodeIP := reply.IP
 	fmt.Printf("Target node IP: %s\n", targetNodeIP)
 
