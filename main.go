@@ -97,7 +97,6 @@ func main() {
 		fmt.Print("Enter choice:")
 		fmt.Scanln(&choice)
 		time.Sleep(1 * time.Second)
-
 		switch choice {
 		case 0:
 			continue
@@ -174,6 +173,7 @@ func main() {
 			}
 		case 6:
 			fmt.Printf("Successor List: %v\n", n.SuccessorList)
+
 		case 7:
 			fmt.Printf("Simulating network partition/node sleeping for 10 seconds\n")
 			node.IsSleeping.Store(true)
