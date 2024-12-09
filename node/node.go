@@ -37,7 +37,7 @@ type NodeInfo struct {
 }
 
 const (
-	timeInterval = 5        // Time interval for stabilization and fixing fingers
+	timeInterval = 5         // Time interval for stabilization and fixing fingers
 	r            = 3         // Number of successors to keep in the successor list
 	retries      = 3         // Number of retries for file transfer
 	CONFIRM      = "CONFIRM" // Confirm file transfer

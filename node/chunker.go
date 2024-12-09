@@ -4,6 +4,7 @@ import (
 	"distributed-chord/utils"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,12 +18,13 @@ type ChunkInfo struct {
 
 func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time) []ChunkInfo {
 	dataDir := "/local" // Change if needed
-	const chunkSize = 1000000
+	var chunkSize int
 	const TargetRetry = 10 * time.Second
 	var chunks []ChunkInfo
 
 	// checking if the file exists in the loacl file path of the docker container
 	filePath := filepath.Join(dataDir, fileName)
+	fileInfo, err := os.Stat(filePath)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		fmt.Printf("File %s does not exist in directory %s\n", fileName, dataDir)
 		return nil
@@ -31,6 +33,17 @@ func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time
 		return nil
 	}
 
+	fileSize := fileInfo.Size()    // Convert to KB
+	fileSizenew := fileSize / 1000 // Convert to MB
+
+	// Calculate number of chunks using logarithmic scaling
+	// log2(fileSize) rounded up, with a minimum of 1 and maximum of 20
+	numChunks := int(math.Ceil(math.Log2(math.Max(float64(fileSizenew), 1))))
+	// numChunks = max(1, min(numChunks, 20))
+
+	// Dynamically calculate chunk size
+	chunkSize = int(math.Ceil(float64(fileSize) / float64(numChunks)))
+	fmt.Printf("Chunk size: %v, number of Chunks: %v", chunkSize, numChunks)
 	// Open the source file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -128,7 +141,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time
 	fmt.Printf("Going to send to chunk location receiver\n")
 	fmt.Printf("Kill the target node in the 3 second duration.\n")
 	time.Sleep(3 * time.Second)
-	
+
 	retryInterval := 2 * time.Second
 	retryStartTime := time.Now()
 	var sendErr error
