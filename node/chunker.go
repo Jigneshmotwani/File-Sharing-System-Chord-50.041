@@ -118,6 +118,7 @@ func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time
 
 	message := Message{
 		ID: n.ID,
+		IP: n.IP,
 		ChunkTransferParams: ChunkTransferRequest{
 			Chunks: chunks,
 		},
@@ -126,8 +127,8 @@ func (n *Node) Chunker(fileName string, targetNodeIP string, startTime time.Time
 
 	// Uncomment this for target node sleeping before receiving chunk info
 	fmt.Printf("Going to send to chunk location receiver\n")
-	fmt.Printf("Kill the target node in the 3 second duration.\n")
-	time.Sleep(3 * time.Second)
+	// fmt.Printf("Kill the target node in the 3 second duration.\n")
+	// time.Sleep(3 * time.Second)
 	
 	retryInterval := 2 * time.Second
 	retryStartTime := time.Now()
@@ -254,7 +255,7 @@ func (n *Node) send(chunks []ChunkInfo, targetNodeIP string) error {
 func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 
 	// Fault Tolerance - Torget node is unreachabele/sleeping before the chunks array are sent (may or may not come back alive)
-	fmt.Printf("[NODE-%d] Simulating sleep. Ignoring requests for 12 seconds...Kill the current node\n", n.ID)
+	// fmt.Printf("[NODE-%d] Simulating sleep. Ignoring requests for 12 seconds...Kill the current node\n", n.ID)
 	// os.Exit(0)
 
 	// Validate chunk information
@@ -281,6 +282,7 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 		// Create a new message for the assembler
 		assemblerMessage := Message{
 			ID: message.ID,
+			IP: message.IP,
 			ChunkTransferParams: ChunkTransferRequest{
 				Chunks: chunksCopy,
 			},
@@ -316,5 +318,13 @@ func (n *Node) ChunkLocationReceiver(message Message, reply *Message) error {
 	*reply = Message{
 		Type: "CHUNK_LOCATIONS_RECEIVED",
 	}
+	return nil
+}
+
+func (n *Node) AssemblerComplete(message Message, reply *Message) error {
+	green := "\033[32m"  // ANSI code for red text
+	reset := "\033[0m" // ANSI code to reset color
+	fmt.Printf("File Transfer has successfully completed.\n")
+	fmt.Printf(green + "Time taken: %v\n" + reset, time.Since(n.StartReq))
 	return nil
 }
