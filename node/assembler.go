@@ -44,6 +44,10 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	// fmt.Printf("Pausing for 10 seconds before assembly. You can stop the sender now to simulate failure.\n")
 	// time.Sleep(10 * time.Second)
 
+	// Killing for experiment simulation
+	// fmt.Printf("Pausing for 15 seconds before assembly. You can stop the node now to simulate failure.\n")
+	// time.Sleep(15 * time.Second)
+
 	// Multiple Node Failures - Simulate node failure after during assembly
 	// fmt.Printf("Pausing for 20 seconds during assembly. Crash other nodes now.\n")
 	// time.Sleep(20 * time.Second)
@@ -67,6 +71,10 @@ func (n *Node) Assembler(message Message, reply *Message) error {
 	n.removeChunksRemotely(assembleFolder, message.ChunkTransferParams.Chunks)
 	n.removeChunksRemotely(dataFolder, message.ChunkTransferParams.Chunks)
 
+	_, err = CallRPCMethod(message.IP, "Node.AssemblerComplete", Message{})
+	if err != nil {
+		fmt.Printf("Error notifying sender of assembly completion: %v\n", err)
+	}
 	return nil
 }
 

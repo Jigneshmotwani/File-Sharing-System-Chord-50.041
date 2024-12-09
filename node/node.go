@@ -26,6 +26,7 @@ type Node struct {
 	Predecessor     Pointer
 	FingerTable     []Pointer
 	SuccessorList   []Pointer
+	StartReq time.Time
 	Lock            sync.Mutex
 	AssemblerChunks []ChunkInfo // Field to store the assembler chunks
 }
@@ -38,13 +39,14 @@ type NodeInfo struct {
 
 const (
 	timeInterval = 5        // Time interval for stabilization and fixing fingers
-	r            = 3         // Number of successors to keep in the successor list
+	r = 3 // Number of successors to keep in the successor list
 	retries      = 3         // Number of retries for file transfer
 	CONFIRM      = "CONFIRM" // Confirm file transfer
 	REJECT       = "REJECT"  // Deny file transfer
 )
 
 var IsSleeping atomic.Bool
+
 
 // Starting the RPC server for the nodes
 func (n *Node) StartRPCServer() {
@@ -130,6 +132,7 @@ func (n *Node) RequestFileTransfer(targetNodeID int, fileName string) error {
 	if response.Type == CONFIRM {
 		fmt.Println("\nTarget accepted the file transfer. Initiating transfer...")
 		startTime := time.Now()
+		n.StartReq = startTime
 		chunks := n.Chunker(fileName, targetNodeIP, startTime)
 		if len(chunks) > 0 {
 			//i changed this to chunk transfer, since printing out file transfer completed when simulating target node faliue during assembly may look weird to prof
