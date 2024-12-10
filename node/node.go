@@ -26,7 +26,7 @@ type Node struct {
 	Predecessor     Pointer
 	FingerTable     []Pointer
 	SuccessorList   []Pointer
-	StartReq time.Time
+	StartReq        time.Time
 	Lock            sync.Mutex
 	AssemblerChunks []ChunkInfo // Field to store the assembler chunks
 }
@@ -46,7 +46,6 @@ const (
 )
 
 var IsSleeping atomic.Bool
-
 
 // Starting the RPC server for the nodes
 func (n *Node) StartRPCServer() {
