@@ -9,11 +9,12 @@ Make sure you have docker installed on your machine. If not, you can download it
 docker compose up -d --build --scale peer=3
 ```
 This command will start 3 peer nodes at once. If there is already a peer node running, this command will start 2 more peer nodes.
+
 2. Once the bootstrap and peer nodes running, you can find the container id of each of the nodes by running the following:
 ```bash
 docker container ls
 ```
-Once you obtain the container ID of the bootstrap and peer nodes, you can run the following command to initiate the chord network and see the logs of the nodes:
+3. Once you obtain the container ID of the bootstrap and peer nodes, you can run the following command to initiate the chord network and see the logs of the nodes:
 ```bash 
 docker exec -it file-sharing-system-chord-50041-bootstrap-1 bash
 fts
